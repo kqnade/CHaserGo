@@ -256,24 +256,51 @@ func (m *Map) SaveToFile(filename string) error {
 	if err != nil {
 		return fmt.Errorf("failed to create file: %w", err)
 	}
-	defer file.Close()
 
-	// ヘッダー情報
-	basename := filepath.Base(filename)
-	fmt.Fprintf(file, "N generated%s\n", basename)
-	fmt.Fprintf(file, "T %d\n", m.Turns)
-	fmt.Fprintf(file, "S %d,%d\n", m.Height, m.Width)
-
-	// マップデータ
-	for y := 0; y < m.Height; y++ {
-		for x := 0; x < m.Width; x++ {
-			fmt.Fprintf(file, "D %d,%d,%d\n", y, x, m.Data[y][x])
+	// エラーハンドリング用のヘルパー関数
+	writeErr := func() error {
+		// ヘッダー情報
+		basename := filepath.Base(filename)
+		if _, err := fmt.Fprintf(file, "N generated%s\n", basename); err != nil {
+			return fmt.Errorf("failed to write name: %w", err)
 		}
+		if _, err := fmt.Fprintf(file, "T %d\n", m.Turns); err != nil {
+			return fmt.Errorf("failed to write turns: %w", err)
+		}
+		if _, err := fmt.Fprintf(file, "S %d,%d\n", m.Height, m.Width); err != nil {
+			return fmt.Errorf("failed to write size: %w", err)
+		}
+
+		// マップデータ
+		for y := 0; y < m.Height; y++ {
+			for x := 0; x < m.Width; x++ {
+				if _, err := fmt.Fprintf(file, "D %d,%d,%d\n", y, x, m.Data[y][x]); err != nil {
+					return fmt.Errorf("failed to write map data at (%d,%d): %w", y, x, err)
+				}
+			}
+		}
+
+		// エージェント位置
+		if _, err := fmt.Fprintf(file, "H %d,%d\n", m.Hot.Y, m.Hot.X); err != nil {
+			return fmt.Errorf("failed to write hot position: %w", err)
+		}
+		if _, err := fmt.Fprintf(file, "C %d,%d\n", m.Cool.Y, m.Cool.X); err != nil {
+			return fmt.Errorf("failed to write cool position: %w", err)
+		}
+
+		return nil
 	}
 
-	// エージェント位置
-	fmt.Fprintf(file, "H %d,%d\n", m.Hot.Y, m.Hot.X)
-	fmt.Fprintf(file, "C %d,%d\n", m.Cool.Y, m.Cool.X)
+	// 書き込み実行
+	if err := writeErr(); err != nil {
+		file.Close() // エラー時も明示的にクローズ
+		return err
+	}
+
+	// ファイルを明示的にクローズしてエラーチェック
+	if err := file.Close(); err != nil {
+		return fmt.Errorf("failed to close file: %w", err)
+	}
 
 	return nil
 }
