@@ -134,6 +134,10 @@ func (ms *MockServer) handleClient(conn net.Conn) {
 	}
 	_ = name // 名前は使用しないが、プロトコルに従って受信
 
+	// 2. 接続後すぐに初期メッセージを送信
+	writer.WriteString("Ready\n")
+	writer.Flush()
+
 	responseIndex := 0
 
 	for {
@@ -163,12 +167,6 @@ func (ms *MockServer) handleClient(conn net.Conn) {
 		}
 		ms.mu.Unlock()
 
-		if isGetReady {
-			// getReadyの場合: 初期行送信 + レスポンス
-			writer.WriteString("Ready\n")
-			writer.Flush()
-		}
-
 		// レスポンス送信
 		writer.WriteString(response + "\n")
 		writer.Flush()
@@ -180,5 +178,9 @@ func (ms *MockServer) handleClient(conn net.Conn) {
 				return
 			}
 		}
+
+		// 次のターンの初期メッセージを送信
+		writer.WriteString("Ready\n")
+		writer.Flush()
 	}
 }
