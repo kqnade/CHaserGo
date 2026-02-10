@@ -121,22 +121,48 @@ func TestMockServerMultipleResponses(t *testing.T) {
 	writer.WriteString("test\n")
 	writer.Flush()
 
+	// 初期行受信（接続直後）
+	_, err = reader.ReadString('\n')
+	if err != nil {
+		t.Fatalf("Failed to read initial line: %v", err)
+	}
+
 	// 各レスポンスを確認
 	for i, expected := range responses {
-		// getReadyコマンド
-		writer.WriteString("gr\r\n")
-		writer.Flush()
+		var response string
 
-		// 初期行
-		_, err := reader.ReadString('\n')
-		if err != nil {
-			t.Fatalf("Command %d: failed to read initial line: %v", i, err)
-		}
+		if i == 0 {
+			// 最初はgetReady
+			writer.WriteString("gr\r\n")
+			writer.Flush()
 
-		// レスポンス
-		response, err := reader.ReadString('\n')
-		if err != nil {
-			t.Fatalf("Command %d: failed to read response: %v", i, err)
+			// getReadyレスポンス
+			response, err = reader.ReadString('\n')
+			if err != nil {
+				t.Fatalf("Command %d: failed to read response: %v", i, err)
+			}
+		} else {
+			// 2回目以降はアクションコマンド（walk up）
+			writer.WriteString("wu\r\n")
+			writer.Flush()
+
+			// アクションレスポンス
+			response, err = reader.ReadString('\n')
+			if err != nil {
+				t.Fatalf("Command %d: failed to read response: %v", i, err)
+			}
+
+			// 確認応答送信
+			writer.WriteString("#\r\n")
+			writer.Flush()
+
+			// ゲームオーバーでない場合、次のターン開始メッセージ受信
+			if expected != "0000000000" {
+				_, err = reader.ReadString('\n')
+				if err != nil {
+					t.Fatalf("Command %d: failed to read Ready message: %v", i, err)
+				}
+			}
 		}
 
 		response = response[:len(response)-1]
