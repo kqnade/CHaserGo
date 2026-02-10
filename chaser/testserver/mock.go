@@ -177,10 +177,10 @@ func (ms *MockServer) handleClient(conn net.Conn) {
 			if err != nil {
 				return
 			}
+		} else {
+			// getReadyの場合: 次のターンの初期メッセージを送信
+			writer.WriteString("Ready\n")
+			writer.Flush()
 		}
-
-		// 次のターンの初期メッセージを送信
-		writer.WriteString("Ready\n")
-		writer.Flush()
 	}
 }

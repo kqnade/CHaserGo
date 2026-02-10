@@ -267,3 +267,250 @@ func TestEncodeNameForPortInConfig(t *testing.T) {
 		})
 	}
 }
+
+// TestWalk はWalkメソッドをテスト
+func TestWalk(t *testing.T) {
+	tests := []struct {
+		name      string
+		direction Direction
+		response  string
+		wantValue CellType
+	}{
+		{name: "Walk Up", direction: Up, response: "1000000000", wantValue: Enemy},
+		{name: "Walk Down", direction: Down, response: "1222000000", wantValue: Enemy},
+		{name: "Walk Left", direction: Left, response: "1000222000", wantValue: Enemy},
+		{name: "Walk Right", direction: Right, response: "1000000222", wantValue: Enemy},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			server := testserver.NewMockServer("0")
+			server.SetResponses([]string{"1000000000", tt.response})
+			err := server.Start()
+			if err != nil {
+				t.Fatalf("Failed to start server: %v", err)
+			}
+			defer server.Stop()
+
+			time.Sleep(50 * time.Millisecond)
+
+			config := ClientConfig{Host: "127.0.0.1", Port: server.Port(), Name: "test"}
+			client := NewClient(config)
+			ctx := context.Background()
+
+			err = client.Connect(ctx)
+			if err != nil {
+				t.Fatalf("Failed to connect: %v", err)
+			}
+			defer client.Disconnect()
+
+			// Readyを先に呼び出して初期メッセージを消費
+			_, err = client.Ready(ctx)
+			if err != nil {
+				t.Fatalf("Ready() failed: %v", err)
+			}
+
+			resp, err := client.Walk(ctx, tt.direction)
+			if err != nil {
+				t.Fatalf("Walk() failed: %v", err)
+			}
+
+			if resp.Values[0] != tt.wantValue {
+				t.Errorf("Expected Values[0]=%v, got %v", tt.wantValue, resp.Values[0])
+			}
+		})
+	}
+}
+
+// TestLook はLookメソッドをテスト
+func TestLook(t *testing.T) {
+	tests := []struct {
+		name      string
+		direction Direction
+		response  string
+	}{
+		{name: "Look Up", direction: Up, response: "1000200000"},
+		{name: "Look Down", direction: Down, response: "1000000020"},
+		{name: "Look Left", direction: Left, response: "1020000000"},
+		{name: "Look Right", direction: Right, response: "1000020000"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			server := testserver.NewMockServer("0")
+			server.SetResponses([]string{"1000000000", tt.response})
+			err := server.Start()
+			if err != nil {
+				t.Fatalf("Failed to start server: %v", err)
+			}
+			defer server.Stop()
+
+			time.Sleep(50 * time.Millisecond)
+
+			config := ClientConfig{Host: "127.0.0.1", Port: server.Port(), Name: "test"}
+			client := NewClient(config)
+			ctx := context.Background()
+
+			err = client.Connect(ctx)
+			if err != nil {
+				t.Fatalf("Failed to connect: %v", err)
+			}
+			defer client.Disconnect()
+
+			// Readyを先に呼び出して初期メッセージを消費
+			_, err = client.Ready(ctx)
+			if err != nil {
+				t.Fatalf("Ready() failed: %v", err)
+			}
+
+			resp, err := client.Look(ctx, tt.direction)
+			if err != nil {
+				t.Fatalf("Look() failed: %v", err)
+			}
+
+			if resp == nil {
+				t.Fatal("Response is nil")
+			}
+		})
+	}
+}
+
+// TestSearch はSearchメソッドをテスト
+func TestSearch(t *testing.T) {
+	tests := []struct {
+		name      string
+		direction Direction
+		response  string
+	}{
+		{name: "Search Up", direction: Up, response: "1000300000"},
+		{name: "Search Down", direction: Down, response: "1000000030"},
+		{name: "Search Left", direction: Left, response: "1030000000"},
+		{name: "Search Right", direction: Right, response: "1000030000"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			server := testserver.NewMockServer("0")
+			server.SetResponses([]string{"1000000000", tt.response})
+			err := server.Start()
+			if err != nil {
+				t.Fatalf("Failed to start server: %v", err)
+			}
+			defer server.Stop()
+
+			time.Sleep(50 * time.Millisecond)
+
+			config := ClientConfig{Host: "127.0.0.1", Port: server.Port(), Name: "test"}
+			client := NewClient(config)
+			ctx := context.Background()
+
+			err = client.Connect(ctx)
+			if err != nil {
+				t.Fatalf("Failed to connect: %v", err)
+			}
+			defer client.Disconnect()
+
+			// Readyを先に呼び出して初期メッセージを消費
+			_, err = client.Ready(ctx)
+			if err != nil {
+				t.Fatalf("Ready() failed: %v", err)
+			}
+
+			resp, err := client.Search(ctx, tt.direction)
+			if err != nil {
+				t.Fatalf("Search() failed: %v", err)
+			}
+
+			if resp == nil {
+				t.Fatal("Response is nil")
+			}
+		})
+	}
+}
+
+// TestPut はPutメソッドをテスト
+func TestPut(t *testing.T) {
+	tests := []struct {
+		name      string
+		direction Direction
+		response  string
+	}{
+		{name: "Put Up", direction: Up, response: "1000200000"},
+		{name: "Put Down", direction: Down, response: "1000000020"},
+		{name: "Put Left", direction: Left, response: "1020000000"},
+		{name: "Put Right", direction: Right, response: "1000020000"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			server := testserver.NewMockServer("0")
+			server.SetResponses([]string{"1000000000", tt.response})
+			err := server.Start()
+			if err != nil {
+				t.Fatalf("Failed to start server: %v", err)
+			}
+			defer server.Stop()
+
+			time.Sleep(50 * time.Millisecond)
+
+			config := ClientConfig{Host: "127.0.0.1", Port: server.Port(), Name: "test"}
+			client := NewClient(config)
+			ctx := context.Background()
+
+			err = client.Connect(ctx)
+			if err != nil {
+				t.Fatalf("Failed to connect: %v", err)
+			}
+			defer client.Disconnect()
+
+			// Readyを先に呼び出して初期メッセージを消費
+			_, err = client.Ready(ctx)
+			if err != nil {
+				t.Fatalf("Ready() failed: %v", err)
+			}
+
+			resp, err := client.Put(ctx, tt.direction)
+			if err != nil {
+				t.Fatalf("Put() failed: %v", err)
+			}
+
+			if resp == nil {
+				t.Fatal("Response is nil")
+			}
+		})
+	}
+}
+
+// TestSetDeadline はSetDeadlineメソッドをテスト
+func TestSetDeadline(t *testing.T) {
+	server := testserver.NewMockServer("0")
+	err := server.Start()
+	if err != nil {
+		t.Fatalf("Failed to start server: %v", err)
+	}
+	defer server.Stop()
+
+	time.Sleep(50 * time.Millisecond)
+
+	config := ClientConfig{Host: "127.0.0.1", Port: server.Port(), Name: "test"}
+	client := NewClient(config)
+	ctx := context.Background()
+
+	// 未接続時のSetDeadline
+	err = client.SetDeadline(time.Now().Add(1 * time.Second))
+	if err != ErrNotConnected {
+		t.Errorf("Expected ErrNotConnected, got %v", err)
+	}
+
+	// 接続後のSetDeadline
+	err = client.Connect(ctx)
+	if err != nil {
+		t.Fatalf("Failed to connect: %v", err)
+	}
+	defer client.Disconnect()
+
+	err = client.SetDeadline(time.Now().Add(1 * time.Second))
+	if err != nil {
+		t.Errorf("SetDeadline() failed: %v", err)
+	}
+}
