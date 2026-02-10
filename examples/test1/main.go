@@ -4,17 +4,33 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"os"
 
-	"CHaserGo/chaser"
+	"github.com/kqnade/CHaserGo/chaser"
 )
 
 func main() {
-	// サーバー情報の入力
-	var host, port string
-	fmt.Print("IPアドレス: ")
-	fmt.Scan(&host)
-	fmt.Print("ポート番号: ")
-	fmt.Scan(&port)
+	// サーバー情報の取得（環境変数 → 標準入力 → デフォルト）
+	host := os.Getenv("CHASER_HOST")
+	port := os.Getenv("CHASER_PORT")
+
+	if host == "" {
+		fmt.Print("IPアドレス [127.0.0.1]: ")
+		fmt.Scanln(&host)
+		if host == "" {
+			host = "127.0.0.1"
+		}
+	}
+
+	if port == "" {
+		fmt.Print("ポート番号 [2009]: ")
+		fmt.Scanln(&port)
+		if port == "" {
+			port = "2009"
+		}
+	}
+
+	log.Printf("接続先: %s:%s", host, port)
 
 	// クライアント作成
 	client := chaser.NewClient(chaser.ClientConfig{
@@ -35,7 +51,8 @@ func main() {
 		// Ready
 		resp, err := client.Ready(ctx)
 		if err != nil {
-			log.Fatalf("エラー: %v", err)
+			log.Printf("エラー: %v", err)
+			break
 		}
 		if resp.GameOver {
 			break
@@ -44,7 +61,8 @@ func main() {
 		// Search Up
 		resp, err = client.Search(ctx, chaser.Up)
 		if err != nil {
-			log.Fatalf("エラー: %v", err)
+			log.Printf("エラー: %v", err)
+			break
 		}
 		if resp.GameOver {
 			break
@@ -53,7 +71,8 @@ func main() {
 		// Ready
 		resp, err = client.Ready(ctx)
 		if err != nil {
-			log.Fatalf("エラー: %v", err)
+			log.Printf("エラー: %v", err)
+			break
 		}
 		if resp.GameOver {
 			break
@@ -62,7 +81,8 @@ func main() {
 		// Search Right
 		resp, err = client.Search(ctx, chaser.Right)
 		if err != nil {
-			log.Fatalf("エラー: %v", err)
+			log.Printf("エラー: %v", err)
+			break
 		}
 		if resp.GameOver {
 			break
@@ -71,7 +91,8 @@ func main() {
 		// Ready
 		resp, err = client.Ready(ctx)
 		if err != nil {
-			log.Fatalf("エラー: %v", err)
+			log.Printf("エラー: %v", err)
+			break
 		}
 		if resp.GameOver {
 			break
@@ -80,7 +101,8 @@ func main() {
 		// Search Down
 		resp, err = client.Search(ctx, chaser.Down)
 		if err != nil {
-			log.Fatalf("エラー: %v", err)
+			log.Printf("エラー: %v", err)
+			break
 		}
 		if resp.GameOver {
 			break
@@ -89,7 +111,8 @@ func main() {
 		// Ready
 		resp, err = client.Ready(ctx)
 		if err != nil {
-			log.Fatalf("エラー: %v", err)
+			log.Printf("エラー: %v", err)
+			break
 		}
 		if resp.GameOver {
 			break
@@ -98,7 +121,8 @@ func main() {
 		// Search Left
 		resp, err = client.Search(ctx, chaser.Left)
 		if err != nil {
-			log.Fatalf("エラー: %v", err)
+			log.Printf("エラー: %v", err)
+			break
 		}
 		if resp.GameOver {
 			break

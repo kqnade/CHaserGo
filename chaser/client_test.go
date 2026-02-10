@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"CHaserGo/chaser/testserver"
+	"github.com/kqnade/CHaserGo/chaser/testserver"
 )
 
 // TestNewClient はクライアントの作成をテスト
@@ -34,7 +34,9 @@ func TestConnectAndDisconnect(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to start mock server: %v", err)
 	}
-	defer server.Stop()
+	defer func() {
+		_ = server.Stop()
+	}()
 
 	time.Sleep(50 * time.Millisecond)
 
@@ -69,7 +71,9 @@ func TestReady(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to start mock server: %v", err)
 	}
-	defer server.Stop()
+	defer func() {
+		_ = server.Stop()
+	}()
 
 	time.Sleep(50 * time.Millisecond)
 
@@ -87,7 +91,7 @@ func TestReady(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to connect: %v", err)
 	}
-	defer client.Disconnect()
+	defer func() { _ = client.Disconnect() }()
 
 	// Ready呼び出し
 	resp, err := client.Ready(ctx)
@@ -114,7 +118,9 @@ func TestReadyGameOver(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to start mock server: %v", err)
 	}
-	defer server.Stop()
+	defer func() {
+		_ = server.Stop()
+	}()
 
 	time.Sleep(50 * time.Millisecond)
 
@@ -132,7 +138,7 @@ func TestReadyGameOver(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to connect: %v", err)
 	}
-	defer client.Disconnect()
+	defer func() { _ = client.Disconnect() }()
 
 	// Ready呼び出し
 	resp, err := client.Ready(ctx)
@@ -162,7 +168,7 @@ func TestConnectWithTimeout(t *testing.T) {
 	err := client.Connect(ctx)
 	if err == nil {
 		t.Error("Expected connection error, got nil")
-		client.Disconnect()
+		_ = client.Disconnect()
 	}
 }
 
@@ -180,7 +186,9 @@ func TestMultipleCommands(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to start mock server: %v", err)
 	}
-	defer server.Stop()
+	defer func() {
+		_ = server.Stop()
+	}()
 
 	time.Sleep(50 * time.Millisecond)
 
@@ -198,7 +206,7 @@ func TestMultipleCommands(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to connect: %v", err)
 	}
-	defer client.Disconnect()
+	defer func() { _ = client.Disconnect() }()
 
 	// Ready → Walk を2回繰り返す
 	for i := 0; i < 2; i++ {
@@ -254,7 +262,9 @@ func TestEncodeNameForPortInConfig(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Failed to start mock server: %v", err)
 			}
-			defer server.Stop()
+			defer func() {
+		_ = server.Stop()
+	}()
 
 			time.Sleep(50 * time.Millisecond)
 
@@ -273,7 +283,7 @@ func TestEncodeNameForPortInConfig(t *testing.T) {
 			if err != nil {
 				t.Errorf("Failed to connect with %s encoding: %v", tt.name, err)
 			} else {
-				client.Disconnect()
+				_ = client.Disconnect()
 			}
 		})
 	}
@@ -301,7 +311,9 @@ func TestWalk(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Failed to start server: %v", err)
 			}
-			defer server.Stop()
+			defer func() {
+		_ = server.Stop()
+	}()
 
 			time.Sleep(50 * time.Millisecond)
 
@@ -313,7 +325,7 @@ func TestWalk(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Failed to connect: %v", err)
 			}
-			defer client.Disconnect()
+			defer func() { _ = client.Disconnect() }()
 
 			// Readyを先に呼び出して初期メッセージを消費
 			_, err = client.Ready(ctx)
@@ -354,7 +366,9 @@ func TestLook(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Failed to start server: %v", err)
 			}
-			defer server.Stop()
+			defer func() {
+		_ = server.Stop()
+	}()
 
 			time.Sleep(50 * time.Millisecond)
 
@@ -366,7 +380,7 @@ func TestLook(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Failed to connect: %v", err)
 			}
-			defer client.Disconnect()
+			defer func() { _ = client.Disconnect() }()
 
 			// Readyを先に呼び出して初期メッセージを消費
 			_, err = client.Ready(ctx)
@@ -407,7 +421,9 @@ func TestSearch(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Failed to start server: %v", err)
 			}
-			defer server.Stop()
+			defer func() {
+		_ = server.Stop()
+	}()
 
 			time.Sleep(50 * time.Millisecond)
 
@@ -419,7 +435,7 @@ func TestSearch(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Failed to connect: %v", err)
 			}
-			defer client.Disconnect()
+			defer func() { _ = client.Disconnect() }()
 
 			// Readyを先に呼び出して初期メッセージを消費
 			_, err = client.Ready(ctx)
@@ -460,7 +476,9 @@ func TestPut(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Failed to start server: %v", err)
 			}
-			defer server.Stop()
+			defer func() {
+		_ = server.Stop()
+	}()
 
 			time.Sleep(50 * time.Millisecond)
 
@@ -472,7 +490,7 @@ func TestPut(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Failed to connect: %v", err)
 			}
-			defer client.Disconnect()
+			defer func() { _ = client.Disconnect() }()
 
 			// Readyを先に呼び出して初期メッセージを消費
 			_, err = client.Ready(ctx)
@@ -499,7 +517,9 @@ func TestSetDeadline(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to start server: %v", err)
 	}
-	defer server.Stop()
+	defer func() {
+		_ = server.Stop()
+	}()
 
 	time.Sleep(50 * time.Millisecond)
 
@@ -518,7 +538,7 @@ func TestSetDeadline(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to connect: %v", err)
 	}
-	defer client.Disconnect()
+	defer func() { _ = client.Disconnect() }()
 
 	err = client.SetDeadline(time.Now().Add(1 * time.Second))
 	if err != nil {
@@ -534,7 +554,9 @@ func TestConnectErrors(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to start server: %v", err)
 	}
-	defer server.Stop()
+	defer func() {
+		_ = server.Stop()
+	}()
 
 	time.Sleep(50 * time.Millisecond)
 
@@ -546,7 +568,7 @@ func TestConnectErrors(t *testing.T) {
 	if err != nil {
 		t.Fatalf("First connect failed: %v", err)
 	}
-	defer client.Disconnect()
+	defer func() { _ = client.Disconnect() }()
 
 	// 2回目の接続
 	err = client.Connect(ctx)

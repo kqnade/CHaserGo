@@ -1,5 +1,5 @@
-module CHaserGo
+module github.com/kqnade/CHaserGo
 
-go 1.25.6
+go 1.24.0
 
-require golang.org/x/text v0.34.0 // indirect
+require golang.org/x/text v0.34.0

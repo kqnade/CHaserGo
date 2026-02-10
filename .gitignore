@@ -41,3 +41,12 @@ Thumbs.db
 
 # CHaser specific
 *.log
+*.dump
+/generated_map/
+/testdata/*.map
+
+# External projects
+/PortableEditor-Pub/
+
+# Claude Code
+/.claude/

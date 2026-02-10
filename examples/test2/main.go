@@ -4,17 +4,33 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"os"
 
-	"CHaserGo/chaser"
+	"github.com/kqnade/CHaserGo/chaser"
 )
 
 func main() {
-	// サーバー情報の入力
-	var host, port string
-	fmt.Print("IPアドレス: ")
-	fmt.Scan(&host)
-	fmt.Print("ポート番号: ")
-	fmt.Scan(&port)
+	// サーバー情報の取得（環境変数 → 標準入力 → デフォルト）
+	host := os.Getenv("CHASER_HOST")
+	port := os.Getenv("CHASER_PORT")
+
+	if host == "" {
+		fmt.Print("IPアドレス [127.0.0.1]: ")
+		fmt.Scanln(&host)
+		if host == "" {
+			host = "127.0.0.1"
+		}
+	}
+
+	if port == "" {
+		fmt.Print("ポート番号 [2010]: ")
+		fmt.Scanln(&port)
+		if port == "" {
+			port = "2010"
+		}
+	}
+
+	log.Printf("接続先: %s:%s", host, port)
 
 	// クライアント作成
 	client := chaser.NewClient(chaser.ClientConfig{
@@ -37,7 +53,8 @@ func main() {
 		// Ready - 準備信号を送り制御情報と周囲情報を取得
 		resp, err := client.Ready(ctx)
 		if err != nil {
-			log.Fatalf("エラー: %v", err)
+			log.Printf("エラー: %v", err)
+			break
 		}
 		if resp.GameOver { // 制御情報が0なら終了
 			break
@@ -75,7 +92,8 @@ func main() {
 		}
 
 		if err != nil {
-			log.Fatalf("エラー: %v", err)
+			log.Printf("エラー: %v", err)
+			break
 		}
 
 		if resp.GameOver { // 制御情報が0なら終了
