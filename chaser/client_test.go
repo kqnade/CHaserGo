@@ -168,7 +168,7 @@ func TestConnectWithTimeout(t *testing.T) {
 	err := client.Connect(ctx)
 	if err == nil {
 		t.Error("Expected connection error, got nil")
-		client.Disconnect()
+		_ = client.Disconnect()
 	}
 }
 
@@ -283,7 +283,7 @@ func TestEncodeNameForPortInConfig(t *testing.T) {
 			if err != nil {
 				t.Errorf("Failed to connect with %s encoding: %v", tt.name, err)
 			} else {
-				client.Disconnect()
+				_ = client.Disconnect()
 			}
 		})
 	}

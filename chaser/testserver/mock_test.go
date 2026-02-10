@@ -122,8 +122,8 @@ func TestMockServerMultipleResponses(t *testing.T) {
 	writer := bufio.NewWriter(conn)
 
 	// 名前送信
-	writer.WriteString("test\n")
-	writer.Flush()
+	_, _ = writer.WriteString("test\n")
+	_ = writer.Flush()
 
 	// 初期行受信（接続直後）
 	_, err = reader.ReadString('\n')
@@ -137,8 +137,8 @@ func TestMockServerMultipleResponses(t *testing.T) {
 
 		if i == 0 {
 			// 最初はgetReady
-			writer.WriteString("gr\r\n")
-			writer.Flush()
+			_, _ = writer.WriteString("gr\r\n")
+			_ = writer.Flush()
 
 			// getReadyレスポンス
 			response, err = reader.ReadString('\n')
@@ -147,8 +147,8 @@ func TestMockServerMultipleResponses(t *testing.T) {
 			}
 		} else {
 			// 2回目以降はアクションコマンド（walk up）
-			writer.WriteString("wu\r\n")
-			writer.Flush()
+			_, _ = writer.WriteString("wu\r\n")
+			_ = writer.Flush()
 
 			// アクションレスポンス
 			response, err = reader.ReadString('\n')
@@ -157,8 +157,8 @@ func TestMockServerMultipleResponses(t *testing.T) {
 			}
 
 			// 確認応答送信
-			writer.WriteString("#\r\n")
-			writer.Flush()
+			_, _ = writer.WriteString("#\r\n")
+			_ = writer.Flush()
 
 			// ゲームオーバーでない場合、次のターン開始メッセージ受信
 			if expected != "0000000000" {
