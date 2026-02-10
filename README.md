@@ -238,6 +238,8 @@ MIT License
 
 - [CHaserプロジェクト](http://www.procon.gr.jp/)
 - [U-16プログラミングコンテスト](http://www.u16procon.info/)
+- [PortableEditor（公式エディタ）](https://github.com/KPC-U16/PortableEditor-Pub)
+- [CHaser情報サイト](https://procon.946oss.net/)
 
 ## 貢献
 
