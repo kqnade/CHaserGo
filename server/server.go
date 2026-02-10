@@ -147,7 +147,7 @@ func (s *Server) runGame() error {
 	defer s.DumpSystem.Close()
 
 	for s.Board.Turn < s.Board.MaxTurns && !s.Board.GameOver {
-		// ターン番号に応じて先後を決定（奇数: Hot先攻、偶数: Cool先攻）
+		// ターン番号に応じて先後を決定（偶数: Hot先攻、奇数: Cool先攻）
 		if s.Board.Turn%2 == 0 {
 			// Hot先攻
 			if err := s.processTurn(s.HotConn, s.Board.Hot, s.CoolConn, s.Board.Cool); err != nil {
