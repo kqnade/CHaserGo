@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.1] - 2026-02-10
+
+### Fixed
+
+- `TestMockServerMultipleResponses`のタイムアウト問題を修正
+  - getReadyコマンドとアクションコマンドの正しいプロトコルフローに対応
+  - 初期行"Ready\n"は接続直後の1回のみ受信するように修正
+  - 2回目以降はアクションコマンド（walk）を使用するように変更
+
 ## [0.1.0] - 2026-02-10
 
 ### Added
