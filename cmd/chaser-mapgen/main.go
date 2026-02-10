@@ -7,7 +7,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"CHaserGo/mapgen"
+	"github.com/kqnade/CHaserGo/mapgen"
 )
 
 const version = "0.2.0"

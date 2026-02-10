@@ -6,7 +6,7 @@ import (
 	"log"
 	"os"
 
-	"CHaserGo/chaser"
+	"github.com/kqnade/CHaserGo/chaser"
 )
 
 func main() {

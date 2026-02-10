@@ -7,7 +7,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"CHaserGo/server"
+	"github.com/kqnade/CHaserGo/server"
 )
 
 const version = "0.2.0"

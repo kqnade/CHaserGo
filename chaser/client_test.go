@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"CHaserGo/chaser/testserver"
+	"github.com/kqnade/CHaserGo/chaser/testserver"
 )
 
 // TestNewClient はクライアントの作成をテスト

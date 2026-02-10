@@ -1,4 +1,4 @@
-module CHaserGo
+module github.com/kqnade/CHaserGo
 
 go 1.24.0
 
