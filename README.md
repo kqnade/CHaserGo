@@ -442,7 +442,7 @@ make integration-test
 
 ### 動作確認済み環境
 
-- Go 1.25以降
+- Go 1.24以降
 - Windows 10/11
 - macOS 12以降
 - Ubuntu 20.04以降
