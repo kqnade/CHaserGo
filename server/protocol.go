@@ -97,11 +97,12 @@ func (c *Connection) SendGameOver() error {
 
 // SendResponse sends the 10-value response
 func (c *Connection) SendResponse(values [10]int) error {
-	var parts []string
+	// CHaserプロトコル: スペースなしで10桁連続
+	var message string
 	for _, v := range values {
-		parts = append(parts, fmt.Sprintf("%d", v))
+		message += fmt.Sprintf("%d", v)
 	}
-	message := strings.Join(parts, " ") + "\n"
+	message += "\n"
 	return c.Send(message)
 }
 
