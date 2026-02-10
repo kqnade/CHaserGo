@@ -166,14 +166,15 @@ func TestConnectWithTimeout(t *testing.T) {
 	}
 }
 
-// TestMultipleCommands は複数のコマンド送信をテスト
+// TestMultipleCommands は複数のコマンド送信をテスト（Ready → Walk パターン）
 func TestMultipleCommands(t *testing.T) {
 	// モックサーバー起動
 	server := testserver.NewMockServer("0")
 	server.SetResponses([]string{
-		"1000000000",
-		"1222000000",
-		"1000222000",
+		"1000000000", // Ready #1
+		"1222000000", // Walk #1
+		"1000222000", // Ready #2
+		"1000000222", // Walk #2
 	})
 	err := server.Start()
 	if err != nil {
@@ -199,14 +200,24 @@ func TestMultipleCommands(t *testing.T) {
 	}
 	defer client.Disconnect()
 
-	// 3回Readyを呼び出す
-	for i := 0; i < 3; i++ {
+	// Ready → Walk を2回繰り返す
+	for i := 0; i < 2; i++ {
+		// Ready呼び出し
 		resp, err := client.Ready(ctx)
 		if err != nil {
 			t.Fatalf("Ready() call %d failed: %v", i+1, err)
 		}
 		if resp.GameOver {
-			t.Errorf("Call %d: unexpected GameOver", i+1)
+			t.Errorf("Ready call %d: unexpected GameOver", i+1)
+		}
+
+		// Walk呼び出し
+		resp, err = client.Walk(ctx, Up)
+		if err != nil {
+			t.Fatalf("Walk() call %d failed: %v", i+1, err)
+		}
+		if resp.GameOver {
+			t.Errorf("Walk call %d: unexpected GameOver", i+1)
 		}
 	}
 }
@@ -512,5 +523,101 @@ func TestSetDeadline(t *testing.T) {
 	err = client.SetDeadline(time.Now().Add(1 * time.Second))
 	if err != nil {
 		t.Errorf("SetDeadline() failed: %v", err)
+	}
+}
+
+// TestConnectErrors はConnect時のエラーケースをテスト
+func TestConnectErrors(t *testing.T) {
+	// すでに接続済みの場合
+	server := testserver.NewMockServer("0")
+	err := server.Start()
+	if err != nil {
+		t.Fatalf("Failed to start server: %v", err)
+	}
+	defer server.Stop()
+
+	time.Sleep(50 * time.Millisecond)
+
+	config := ClientConfig{Host: "127.0.0.1", Port: server.Port(), Name: "test"}
+	client := NewClient(config)
+	ctx := context.Background()
+
+	err = client.Connect(ctx)
+	if err != nil {
+		t.Fatalf("First connect failed: %v", err)
+	}
+	defer client.Disconnect()
+
+	// 2回目の接続
+	err = client.Connect(ctx)
+	if err != ErrAlreadyConnected {
+		t.Errorf("Expected ErrAlreadyConnected, got %v", err)
+	}
+}
+
+// TestReadyErrors はReady時のエラーケースをテスト
+func TestReadyErrors(t *testing.T) {
+	// 未接続時のReady
+	config := ClientConfig{Host: "127.0.0.1", Port: "12345", Name: "test"}
+	client := NewClient(config)
+	ctx := context.Background()
+
+	_, err := client.Ready(ctx)
+	if err != ErrNotConnected {
+		t.Errorf("Expected ErrNotConnected, got %v", err)
+	}
+}
+
+// TestDisconnectWhenNotConnected は未接続時のDisconnectをテスト
+func TestDisconnectWhenNotConnected(t *testing.T) {
+	config := ClientConfig{Host: "127.0.0.1", Port: "12345", Name: "test"}
+	client := NewClient(config)
+
+	// 未接続時のDisconnect（エラーにならない）
+	err := client.Disconnect()
+	if err != nil {
+		t.Errorf("Disconnect() on unconnected client returned error: %v", err)
+	}
+}
+
+// TestDirectionStringDefault はDirection.String()のデフォルトケースをテスト
+func TestDirectionStringDefault(t *testing.T) {
+	invalid := Direction(99)
+	str := invalid.String()
+	if str != "Direction(99)" {
+		t.Errorf("Expected 'Direction(99)', got %q", str)
+	}
+}
+
+// TestCellTypeStringDefault はCellType.String()のデフォルトケースをテスト
+func TestCellTypeStringDefault(t *testing.T) {
+	invalid := CellType(99)
+	str := invalid.String()
+	if str != "CellType(99)" {
+		t.Errorf("Expected 'CellType(99)', got %q", str)
+	}
+}
+
+// TestWalkNotConnected は未接続時のWalkをテスト
+func TestWalkNotConnected(t *testing.T) {
+	config := ClientConfig{Host: "127.0.0.1", Port: "12345", Name: "test"}
+	client := NewClient(config)
+	ctx := context.Background()
+
+	_, err := client.Walk(ctx, Up)
+	if err != ErrNotConnected {
+		t.Errorf("Expected ErrNotConnected, got %v", err)
+	}
+}
+
+// TestLookNotConnected は未接続時のLookをテスト
+func TestLookNotConnected(t *testing.T) {
+	config := ClientConfig{Host: "127.0.0.1", Port: "12345", Name: "test"}
+	client := NewClient(config)
+	ctx := context.Background()
+
+	_, err := client.Look(ctx, Up)
+	if err != ErrNotConnected {
+		t.Errorf("Expected ErrNotConnected, got %v", err)
 	}
 }
