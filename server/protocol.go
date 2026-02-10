@@ -108,36 +108,39 @@ func (c *Connection) SendResponse(values [10]int) error {
 
 // ParseAction parses an action command
 func ParseAction(command string) (action string, direction Direction, err error) {
-	parts := strings.Split(command, " ")
-	if len(parts) != 2 {
+	// CHaserプロトコル: "wu", "wd", "wl", "wr" (2文字)
+	if len(command) < 2 {
 		return "", 0, fmt.Errorf("invalid command format: %s", command)
 	}
 
-	action = parts[0]
+	// アクション種別（最初の1文字）
+	actionChar := command[0]
+	switch actionChar {
+	case 'w':
+		action = "wk" // walk
+	case 'l':
+		action = "lk" // look
+	case 's':
+		action = "sc" // search
+	case 'p':
+		action = "pt" // put
+	default:
+		return "", 0, fmt.Errorf("invalid action: %c", actionChar)
+	}
 
-	switch parts[1] {
-	case "0":
+	// 方向（2文字目）
+	dirChar := command[1]
+	switch dirChar {
+	case 'u':
 		direction = Up
-	case "1":
+	case 'd':
 		direction = Down
-	case "2":
+	case 'l':
 		direction = Left
-	case "3":
+	case 'r':
 		direction = Right
 	default:
-		return "", 0, fmt.Errorf("invalid direction: %s", parts[1])
-	}
-
-	// アクションの妥当性チェック
-	validActions := map[string]bool{
-		"wk": true, // walk
-		"lk": true, // look
-		"sc": true, // search
-		"pt": true, // put
-	}
-
-	if !validActions[action] {
-		return "", 0, fmt.Errorf("invalid action: %s", action)
+		return "", 0, fmt.Errorf("invalid direction: %c", dirChar)
 	}
 
 	return action, direction, nil
