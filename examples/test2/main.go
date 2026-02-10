@@ -53,7 +53,8 @@ func main() {
 		// Ready - 準備信号を送り制御情報と周囲情報を取得
 		resp, err := client.Ready(ctx)
 		if err != nil {
-			log.Fatalf("エラー: %v", err)
+			log.Printf("エラー: %v", err)
+			break
 		}
 		if resp.GameOver { // 制御情報が0なら終了
 			break
@@ -91,7 +92,8 @@ func main() {
 		}
 
 		if err != nil {
-			log.Fatalf("エラー: %v", err)
+			log.Printf("エラー: %v", err)
+			break
 		}
 
 		if resp.GameOver { // 制御情報が0なら終了

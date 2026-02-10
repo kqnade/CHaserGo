@@ -51,7 +51,8 @@ func main() {
 		// Ready
 		resp, err := client.Ready(ctx)
 		if err != nil {
-			log.Fatalf("エラー: %v", err)
+			log.Printf("エラー: %v", err)
+			break
 		}
 		if resp.GameOver {
 			break
@@ -60,7 +61,8 @@ func main() {
 		// Search Up
 		resp, err = client.Search(ctx, chaser.Up)
 		if err != nil {
-			log.Fatalf("エラー: %v", err)
+			log.Printf("エラー: %v", err)
+			break
 		}
 		if resp.GameOver {
 			break
@@ -69,7 +71,8 @@ func main() {
 		// Ready
 		resp, err = client.Ready(ctx)
 		if err != nil {
-			log.Fatalf("エラー: %v", err)
+			log.Printf("エラー: %v", err)
+			break
 		}
 		if resp.GameOver {
 			break
@@ -78,7 +81,8 @@ func main() {
 		// Search Right
 		resp, err = client.Search(ctx, chaser.Right)
 		if err != nil {
-			log.Fatalf("エラー: %v", err)
+			log.Printf("エラー: %v", err)
+			break
 		}
 		if resp.GameOver {
 			break
@@ -87,7 +91,8 @@ func main() {
 		// Ready
 		resp, err = client.Ready(ctx)
 		if err != nil {
-			log.Fatalf("エラー: %v", err)
+			log.Printf("エラー: %v", err)
+			break
 		}
 		if resp.GameOver {
 			break
@@ -96,7 +101,8 @@ func main() {
 		// Search Down
 		resp, err = client.Search(ctx, chaser.Down)
 		if err != nil {
-			log.Fatalf("エラー: %v", err)
+			log.Printf("エラー: %v", err)
+			break
 		}
 		if resp.GameOver {
 			break
@@ -105,7 +111,8 @@ func main() {
 		// Ready
 		resp, err = client.Ready(ctx)
 		if err != nil {
-			log.Fatalf("エラー: %v", err)
+			log.Printf("エラー: %v", err)
+			break
 		}
 		if resp.GameOver {
 			break
@@ -114,7 +121,8 @@ func main() {
 		// Search Left
 		resp, err = client.Search(ctx, chaser.Left)
 		if err != nil {
-			log.Fatalf("エラー: %v", err)
+			log.Printf("エラー: %v", err)
+			break
 		}
 		if resp.GameOver {
 			break

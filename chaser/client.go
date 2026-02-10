@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"strings"
 	"time"
 )
 
@@ -133,6 +134,10 @@ func (c *Client) Ready(ctx context.Context) (*Response, error) {
 	// 3. レスポンスを読み取る
 	line, err := c.reader.ReadString('\n')
 	if err != nil {
+		// EOFはゲーム終了を意味する
+		if err.Error() == "EOF" || strings.Contains(err.Error(), "connection reset") {
+			return &Response{GameOver: true}, nil
+		}
 		return nil, fmt.Errorf("failed to read response: %w", err)
 	}
 
@@ -166,6 +171,10 @@ func (c *Client) sendCommand(ctx context.Context, cmd string) (*Response, error)
 	// 2. レスポンス読み取り
 	line, err := c.reader.ReadString('\n')
 	if err != nil {
+		// EOFはゲーム終了を意味する
+		if err.Error() == "EOF" || strings.Contains(err.Error(), "connection reset") {
+			return &Response{GameOver: true}, nil
+		}
 		return nil, fmt.Errorf("failed to read response: %w", err)
 	}
 
@@ -173,6 +182,11 @@ func (c *Client) sendCommand(ctx context.Context, cmd string) (*Response, error)
 	resp, err := parseResponse(line)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	// ゲームオーバーの場合は確認応答を送らない
+	if resp.GameOver {
+		return resp, nil
 	}
 
 	// 4. 確認応答送信（"#\r\n"）
