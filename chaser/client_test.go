@@ -34,7 +34,9 @@ func TestConnectAndDisconnect(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to start mock server: %v", err)
 	}
-	defer server.Stop()
+	defer func() {
+		_ = server.Stop()
+	}()
 
 	time.Sleep(50 * time.Millisecond)
 
@@ -69,7 +71,9 @@ func TestReady(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to start mock server: %v", err)
 	}
-	defer server.Stop()
+	defer func() {
+		_ = server.Stop()
+	}()
 
 	time.Sleep(50 * time.Millisecond)
 
@@ -114,7 +118,9 @@ func TestReadyGameOver(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to start mock server: %v", err)
 	}
-	defer server.Stop()
+	defer func() {
+		_ = server.Stop()
+	}()
 
 	time.Sleep(50 * time.Millisecond)
 
@@ -180,7 +186,9 @@ func TestMultipleCommands(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to start mock server: %v", err)
 	}
-	defer server.Stop()
+	defer func() {
+		_ = server.Stop()
+	}()
 
 	time.Sleep(50 * time.Millisecond)
 
@@ -254,7 +262,9 @@ func TestEncodeNameForPortInConfig(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Failed to start mock server: %v", err)
 			}
-			defer server.Stop()
+			defer func() {
+		_ = server.Stop()
+	}()
 
 			time.Sleep(50 * time.Millisecond)
 
@@ -301,7 +311,9 @@ func TestWalk(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Failed to start server: %v", err)
 			}
-			defer server.Stop()
+			defer func() {
+		_ = server.Stop()
+	}()
 
 			time.Sleep(50 * time.Millisecond)
 
@@ -354,7 +366,9 @@ func TestLook(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Failed to start server: %v", err)
 			}
-			defer server.Stop()
+			defer func() {
+		_ = server.Stop()
+	}()
 
 			time.Sleep(50 * time.Millisecond)
 
@@ -407,7 +421,9 @@ func TestSearch(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Failed to start server: %v", err)
 			}
-			defer server.Stop()
+			defer func() {
+		_ = server.Stop()
+	}()
 
 			time.Sleep(50 * time.Millisecond)
 
@@ -460,7 +476,9 @@ func TestPut(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Failed to start server: %v", err)
 			}
-			defer server.Stop()
+			defer func() {
+		_ = server.Stop()
+	}()
 
 			time.Sleep(50 * time.Millisecond)
 
@@ -499,7 +517,9 @@ func TestSetDeadline(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to start server: %v", err)
 	}
-	defer server.Stop()
+	defer func() {
+		_ = server.Stop()
+	}()
 
 	time.Sleep(50 * time.Millisecond)
 
@@ -534,7 +554,9 @@ func TestConnectErrors(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to start server: %v", err)
 	}
-	defer server.Stop()
+	defer func() {
+		_ = server.Stop()
+	}()
 
 	time.Sleep(50 * time.Millisecond)
 

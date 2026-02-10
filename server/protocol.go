@@ -43,7 +43,7 @@ func (c *Connection) Receive() (string, error) {
 	}
 
 	// タイムアウト設定（10秒）
-	c.conn.SetReadDeadline(time.Now().Add(10 * time.Second))
+	_ = c.conn.SetReadDeadline(time.Now().Add(10 * time.Second))
 
 	data, err := c.reader.ReadString('\n')
 	if err != nil {

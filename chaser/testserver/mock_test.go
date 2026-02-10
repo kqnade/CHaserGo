@@ -39,7 +39,9 @@ func TestMockServerConnection(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to start server: %v", err)
 	}
-	defer server.Stop()
+	defer func() {
+		_ = server.Stop()
+	}()
 
 	// サーバーが起動するまで少し待つ
 	time.Sleep(50 * time.Millisecond)
@@ -104,7 +106,9 @@ func TestMockServerMultipleResponses(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to start server: %v", err)
 	}
-	defer server.Stop()
+	defer func() {
+		_ = server.Stop()
+	}()
 
 	time.Sleep(50 * time.Millisecond)
 

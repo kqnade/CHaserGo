@@ -119,7 +119,7 @@ func (s *Server) acceptConnection(port int, playerType string) (*Connection, str
 	log.Printf("Waiting for %s player on port %d...", playerType, port)
 
 	// タイムアウト設定（60秒）
-	listener.(*net.TCPListener).SetDeadline(time.Now().Add(60 * time.Second))
+	_ = listener.(*net.TCPListener).SetDeadline(time.Now().Add(60 * time.Second))
 
 	conn, err := listener.Accept()
 	if err != nil {
@@ -281,10 +281,10 @@ func (s *Server) endGame() error {
 
 	// ゲームオーバー信号を送信
 	if s.HotConn != nil {
-		s.HotConn.SendGameOver()
+		_ = s.HotConn.SendGameOver()
 	}
 	if s.CoolConn != nil {
-		s.CoolConn.SendGameOver()
+		_ = s.CoolConn.SendGameOver()
 	}
 
 	return nil
