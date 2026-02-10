@@ -91,7 +91,7 @@ func TestReady(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to connect: %v", err)
 	}
-	defer client.Disconnect()
+	defer func() { _ = client.Disconnect() }()
 
 	// Ready呼び出し
 	resp, err := client.Ready(ctx)
@@ -138,7 +138,7 @@ func TestReadyGameOver(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to connect: %v", err)
 	}
-	defer client.Disconnect()
+	defer func() { _ = client.Disconnect() }()
 
 	// Ready呼び出し
 	resp, err := client.Ready(ctx)
@@ -206,7 +206,7 @@ func TestMultipleCommands(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to connect: %v", err)
 	}
-	defer client.Disconnect()
+	defer func() { _ = client.Disconnect() }()
 
 	// Ready → Walk を2回繰り返す
 	for i := 0; i < 2; i++ {
@@ -325,7 +325,7 @@ func TestWalk(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Failed to connect: %v", err)
 			}
-			defer client.Disconnect()
+			defer func() { _ = client.Disconnect() }()
 
 			// Readyを先に呼び出して初期メッセージを消費
 			_, err = client.Ready(ctx)
@@ -380,7 +380,7 @@ func TestLook(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Failed to connect: %v", err)
 			}
-			defer client.Disconnect()
+			defer func() { _ = client.Disconnect() }()
 
 			// Readyを先に呼び出して初期メッセージを消費
 			_, err = client.Ready(ctx)
@@ -435,7 +435,7 @@ func TestSearch(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Failed to connect: %v", err)
 			}
-			defer client.Disconnect()
+			defer func() { _ = client.Disconnect() }()
 
 			// Readyを先に呼び出して初期メッセージを消費
 			_, err = client.Ready(ctx)
@@ -490,7 +490,7 @@ func TestPut(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Failed to connect: %v", err)
 			}
-			defer client.Disconnect()
+			defer func() { _ = client.Disconnect() }()
 
 			// Readyを先に呼び出して初期メッセージを消費
 			_, err = client.Ready(ctx)
@@ -538,7 +538,7 @@ func TestSetDeadline(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to connect: %v", err)
 	}
-	defer client.Disconnect()
+	defer func() { _ = client.Disconnect() }()
 
 	err = client.SetDeadline(time.Now().Add(1 * time.Second))
 	if err != nil {
@@ -568,7 +568,7 @@ func TestConnectErrors(t *testing.T) {
 	if err != nil {
 		t.Fatalf("First connect failed: %v", err)
 	}
-	defer client.Disconnect()
+	defer func() { _ = client.Disconnect() }()
 
 	// 2回目の接続
 	err = client.Connect(ctx)
