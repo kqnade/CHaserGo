@@ -35,11 +35,11 @@ echo "Server started (PID: $SERVER_PID)"
 echo "Starting test clients..."
 
 # test1をポート2009で実行
-(cd examples/test1 && timeout 30s go run main.go) &
+(cd examples/test1 && CHASER_HOST=127.0.0.1 CHASER_PORT=2009 timeout 30s go run main.go) &
 CLIENT1_PID=$!
 
 # test2をポート2010で実行
-(cd examples/test2 && timeout 30s go run main.go) &
+(cd examples/test2 && CHASER_HOST=127.0.0.1 CHASER_PORT=2010 timeout 30s go run main.go) &
 CLIENT2_PID=$!
 
 # クライアントの終了を待つ

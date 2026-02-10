@@ -41,7 +41,11 @@ Pop-Location
 
 # クライアントを起動
 Write-Host "Starting test clients..." -ForegroundColor Yellow
+$env:CHASER_HOST = "127.0.0.1"
+$env:CHASER_PORT = "2009"
 $client1 = Start-Process -FilePath ".\bin\test1.exe" -PassThru -NoNewWindow
+
+$env:CHASER_PORT = "2010"
 $client2 = Start-Process -FilePath ".\bin\test2.exe" -PassThru -NoNewWindow
 
 # クライアントの終了を待つ（最大30秒）
