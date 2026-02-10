@@ -205,14 +205,57 @@ func (s *Server) runGame() error {
 
 // processTurn processes one player's turn
 func (s *Server) processTurn(conn *Connection, char *Character, opponentConn *Connection, opponent *Character) error {
-	// "@" 送信（開始合図）
-	if err := conn.SendStart(); err != nil {
-		return fmt.Errorf("failed to send start: %w", err)
+	// "Ready\n" 送信（CHaserプロトコル）
+	if err := conn.Send("Ready\n"); err != nil {
+		return fmt.Errorf("failed to send ready: %w", err)
 	}
 
 	// "gr" 受信待機（準備完了確認）
 	if err := conn.WaitForReady(); err != nil {
 		return fmt.Errorf("failed to receive ready: %w", err)
+	}
+
+	// レスポンスを生成して送信（Ready専用）
+	var readyResponse [10]int
+	if s.Board.GameOver {
+		readyResponse[0] = 0
+	} else {
+		readyResponse[0] = 1
+	}
+	// 周囲9マスの情報
+	directions := []struct {
+		dy, dx int
+		index  int
+	}{
+		{-1, -1, 1}, // 左上
+		{-1, 0, 2},  // 上
+		{-1, 1, 3},  // 右上
+		{0, -1, 4},  // 左
+		{0, 0, 5},   // 中央
+		{0, 1, 6},   // 右
+		{1, -1, 7},  // 左下
+		{1, 0, 8},   // 下
+		{1, 1, 9},   // 右下
+	}
+	for _, d := range directions {
+		pos := Position{
+			Y: char.Position.Y + d.dy,
+			X: char.Position.X + d.dx,
+		}
+		if pos == opponent.Position {
+			readyResponse[d.index] = 1 // 敵
+		} else {
+			readyResponse[d.index] = int(s.Board.GetCell(pos))
+		}
+	}
+
+	if err := conn.SendResponse(readyResponse); err != nil {
+		return fmt.Errorf("failed to send ready response: %w", err)
+	}
+
+	// ゲームオーバーなら終了
+	if s.Board.GameOver {
+		return nil
 	}
 
 	// 行動データ受信
@@ -253,6 +296,15 @@ func (s *Server) processTurn(conn *Connection, char *Character, opponentConn *Co
 	// レスポンスを送信
 	if err := conn.SendResponse(response); err != nil {
 		return fmt.Errorf("failed to send response: %w", err)
+	}
+
+	// 確認応答("#\r\n")を受信
+	ack, err := conn.Receive()
+	if err != nil {
+		return fmt.Errorf("failed to receive acknowledgment: %w", err)
+	}
+	if ack != "#" {
+		log.Printf("Warning: expected '#' acknowledgment, got '%s'", ack)
 	}
 
 	return nil
