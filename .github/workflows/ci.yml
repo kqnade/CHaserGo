@@ -101,6 +101,6 @@ jobs:
 
     - name: Build examples
       run: |
-        go build ./examples/test1
-        go build ./examples/test2
-        go build ./examples/test3
+        cd examples/test1 && go build .
+        cd ../test2 && go build .
+        cd ../test3 && go build .
