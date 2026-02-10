@@ -5,8 +5,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net"
-	"strings"
 	"time"
 )
 
@@ -134,8 +134,8 @@ func (c *Client) Ready(ctx context.Context) (*Response, error) {
 	// 3. レスポンスを読み取る
 	line, err := c.reader.ReadString('\n')
 	if err != nil {
-		// EOFはゲーム終了を意味する
-		if err.Error() == "EOF" || strings.Contains(err.Error(), "connection reset") {
+		// EOFまたは接続リセットはゲーム終了を意味する
+		if errors.Is(err, io.EOF) || isConnectionReset(err) {
 			return &Response{GameOver: true}, nil
 		}
 		return nil, fmt.Errorf("failed to read response: %w", err)
@@ -171,8 +171,8 @@ func (c *Client) sendCommand(ctx context.Context, cmd string) (*Response, error)
 	// 2. レスポンス読み取り
 	line, err := c.reader.ReadString('\n')
 	if err != nil {
-		// EOFはゲーム終了を意味する
-		if err.Error() == "EOF" || strings.Contains(err.Error(), "connection reset") {
+		// EOFまたは接続リセットはゲーム終了を意味する
+		if errors.Is(err, io.EOF) || isConnectionReset(err) {
 			return &Response{GameOver: true}, nil
 		}
 		return nil, fmt.Errorf("failed to read response: %w", err)
@@ -184,21 +184,10 @@ func (c *Client) sendCommand(ctx context.Context, cmd string) (*Response, error)
 		return nil, fmt.Errorf("failed to parse response: %w", err)
 	}
 
-	// ゲームオーバーの場合は確認応答を送らない
-	if resp.GameOver {
-		return resp, nil
-	}
-
 	// 4. 確認応答送信（"#\r\n"）
-	_, err = c.writer.WriteString("#\r\n")
-	if err != nil {
-		return nil, fmt.Errorf("failed to send acknowledgment: %w", err)
-	}
-
-	err = c.writer.Flush()
-	if err != nil {
-		return nil, fmt.Errorf("failed to flush acknowledgment: %w", err)
-	}
+	// ゲームオーバーでも送信を試み、エラーは無視（サーバーが既に切断している可能性）
+	_, _ = c.writer.WriteString("#\r\n")
+	_ = c.writer.Flush()
 
 	return resp, nil
 }
@@ -233,4 +222,17 @@ func (c *Client) SetDeadline(t time.Time) error {
 		return ErrNotConnected
 	}
 	return c.conn.SetDeadline(t)
+}
+
+// isConnectionReset はエラーが接続リセットかどうかを判定する
+func isConnectionReset(err error) bool {
+	if err == nil {
+		return false
+	}
+	var opErr *net.OpError
+	if errors.As(err, &opErr) {
+		// 接続リセットやパイプ破損などのネットワークエラーを検出
+		return true
+	}
+	return false
 }

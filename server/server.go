@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net"
@@ -56,17 +57,23 @@ func (s *Server) Start() error {
 	log.Printf("Max turns: %d", s.Board.MaxTurns)
 
 	// 並行して両ポートで接続を待つ
+	// エラー時に早期終了するためのcontext
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	var wg sync.WaitGroup
 	errChan := make(chan error, 2)
+	doneChan := make(chan struct{})
 
 	wg.Add(2)
 
 	// Hot接続待機
 	go func() {
 		defer wg.Done()
-		conn, name, err := s.acceptConnection(s.HotPort, "Hot")
+		conn, name, err := s.acceptConnectionWithContext(ctx, s.HotPort, "Hot")
 		if err != nil {
 			errChan <- fmt.Errorf("hot connection failed: %w", err)
+			cancel() // もう片方をキャンセル
 			return
 		}
 		s.HotConn = conn
@@ -77,9 +84,10 @@ func (s *Server) Start() error {
 	// Cool接続待機
 	go func() {
 		defer wg.Done()
-		conn, name, err := s.acceptConnection(s.CoolPort, "Cool")
+		conn, name, err := s.acceptConnectionWithContext(ctx, s.CoolPort, "Cool")
 		if err != nil {
 			errChan <- fmt.Errorf("cool connection failed: %w", err)
+			cancel() // もう片方をキャンセル
 			return
 		}
 		s.CoolConn = conn
@@ -87,14 +95,20 @@ func (s *Server) Start() error {
 		log.Printf("Cool player connected: %s", name)
 	}()
 
-	wg.Wait()
-	close(errChan)
+	// 完了待機
+	go func() {
+		wg.Wait()
+		close(doneChan)
+	}()
 
-	// エラーチェック
-	for err := range errChan {
-		if err != nil {
-			return err
-		}
+	// 最初のエラーまたは完了を待つ
+	select {
+	case err := <-errChan:
+		cancel() // 残りをキャンセル
+		<-doneChan // 全goroutineの終了を待つ
+		return err
+	case <-doneChan:
+		// 正常完了
 	}
 
 	// プレイヤー名をダンプに記録
@@ -108,8 +122,8 @@ func (s *Server) Start() error {
 	return s.runGame()
 }
 
-// acceptConnection accepts a connection on the specified port
-func (s *Server) acceptConnection(port int, playerType string) (*Connection, string, error) {
+// acceptConnectionWithContext accepts a connection on the specified port with context support
+func (s *Server) acceptConnectionWithContext(ctx context.Context, port int, playerType string) (*Connection, string, error) {
 	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to listen on port %d: %w", port, err)
@@ -121,9 +135,27 @@ func (s *Server) acceptConnection(port int, playerType string) (*Connection, str
 	// タイムアウト設定（60秒）
 	_ = listener.(*net.TCPListener).SetDeadline(time.Now().Add(60 * time.Second))
 
-	conn, err := listener.Accept()
-	if err != nil {
+	// contextのキャンセルを監視
+	acceptChan := make(chan net.Conn, 1)
+	acceptErrChan := make(chan error, 1)
+
+	go func() {
+		conn, err := listener.Accept()
+		if err != nil {
+			acceptErrChan <- err
+			return
+		}
+		acceptChan <- conn
+	}()
+
+	var conn net.Conn
+	select {
+	case <-ctx.Done():
+		return nil, "", ctx.Err()
+	case err := <-acceptErrChan:
 		return nil, "", fmt.Errorf("failed to accept connection: %w", err)
+	case conn = <-acceptChan:
+		// 成功
 	}
 
 	log.Printf("%s player connected from %s", playerType, conn.RemoteAddr())
@@ -320,12 +352,17 @@ func (s *Server) endGame() error {
 	if winner == nil {
 		log.Printf("Result: Draw - %s", reason)
 		log.Printf("Hot: %d items, Cool: %d items", s.Board.Hot.Items, s.Board.Cool.Items)
+
+		// 引き分けをダンプに記録
+		if err := s.DumpSystem.Result(nil, nil, reason); err != nil {
+			log.Printf("Warning: failed to write result to dump: %v", err)
+		}
 	} else {
 		loser := s.Board.GetOpponent(winner)
 		log.Printf("Result: %s wins! - %s", winner.Name, reason)
 		log.Printf("Hot: %d items, Cool: %d items", s.Board.Hot.Items, s.Board.Cool.Items)
 
-		// ダンプに記録
+		// 勝者をダンプに記録
 		if err := s.DumpSystem.Result(winner, loser, reason); err != nil {
 			log.Printf("Warning: failed to write result to dump: %v", err)
 		}
