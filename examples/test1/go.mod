@@ -1,6 +1,6 @@
 module example/test1
 
-go 1.24.0
+go 1.24.13
 
 require github.com/kqnade/CHaserGo v0.0.0
 
