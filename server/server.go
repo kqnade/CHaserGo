@@ -165,6 +165,14 @@ func (s *Server) acceptConnectionWithContext(ctx context.Context, port int, play
 	var conn net.Conn
 	select {
 	case <-ctx.Done():
+		// Drain any result that arrived in the same scheduling window so
+		// the accepted socket is not leaked.
+		select {
+		case c := <-acceptChan:
+			c.Close()
+		case <-acceptErrChan:
+		default:
+		}
 		return nil, "", ctx.Err()
 	case err := <-acceptErrChan:
 		return nil, "", fmt.Errorf("failed to accept connection: %w", err)
