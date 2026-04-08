@@ -180,13 +180,6 @@ func (s *Server) actorsForTurn(turn int) [2]turnActor {
 	}
 }
 
-// TurnResult は processTurn の結果をまとめた値型
-type TurnResult struct {
-	Action    string
-	Direction Direction
-	EndedGame bool
-}
-
 // runGame runs the main game loop
 func (s *Server) runGame(ctx context.Context) error {
 	defer s.HotConn.Close()
@@ -196,13 +189,12 @@ func (s *Server) runGame(ctx context.Context) error {
 	for s.Board.Turn < s.Board.MaxTurns && !s.Board.GameOver {
 		actors := s.actorsForTurn(s.Board.Turn)
 		for _, a := range actors {
-			result, err := s.processTurn(ctx, a.conn, a.self, a.opponent)
+			err := s.processTurn(ctx, a.conn, a.self, a.opponent)
 			if err != nil {
 				log.Printf("%s turn error: %v", a.self.Name, err)
 				a.self.IsAlive = false
 				s.Board.GameOver = true
 			}
-			_ = result
 
 			// ActionEnd: GameOver経路を含め毎回発火
 			s.publishSnapshot(KindActionEnd, a.step, PhaseRunning, "", "")
@@ -224,13 +216,13 @@ func (s *Server) runGame(ctx context.Context) error {
 }
 
 // processTurn processes one player's turn
-func (s *Server) processTurn(ctx context.Context, conn *Connection, char *Character, opponent *Character) (TurnResult, error) {
+func (s *Server) processTurn(ctx context.Context, conn *Connection, char *Character, opponent *Character) error {
 	if err := conn.Send("Ready\n"); err != nil {
-		return TurnResult{}, fmt.Errorf("failed to send ready: %w", err)
+		return fmt.Errorf("failed to send ready: %w", err)
 	}
 
 	if err := conn.WaitForReadyContext(ctx); err != nil {
-		return TurnResult{}, fmt.Errorf("failed to receive ready: %w", err)
+		return fmt.Errorf("failed to receive ready: %w", err)
 	}
 
 	// Ready レスポンス（周辺9マス）生成・送信
@@ -258,22 +250,22 @@ func (s *Server) processTurn(ctx context.Context, conn *Connection, char *Charac
 	}
 
 	if err := conn.SendResponse(readyResponse); err != nil {
-		return TurnResult{}, fmt.Errorf("failed to send ready response: %w", err)
+		return fmt.Errorf("failed to send ready response: %w", err)
 	}
 
 	if s.Board.GameOver {
-		return TurnResult{EndedGame: true}, nil
+		return nil
 	}
 
 	// 行動受信
 	actionStr, err := conn.ReceiveActionContext(ctx)
 	if err != nil {
-		return TurnResult{}, fmt.Errorf("failed to receive action: %w", err)
+		return fmt.Errorf("failed to receive action: %w", err)
 	}
 
 	action, direction, err := ParseAction(actionStr)
 	if err != nil {
-		return TurnResult{}, fmt.Errorf("failed to parse action: %w", err)
+		return fmt.Errorf("failed to parse action: %w", err)
 	}
 
 	log.Printf("%s: %s %d (Turn %d)", char.Name, action, direction, s.Board.Turn)
@@ -295,19 +287,19 @@ func (s *Server) processTurn(ctx context.Context, conn *Connection, char *Charac
 	}
 
 	if err := conn.SendResponse(response); err != nil {
-		return TurnResult{}, fmt.Errorf("failed to send response: %w", err)
+		return fmt.Errorf("failed to send response: %w", err)
 	}
 
 	// '#' 確認応答受信
 	ack, err := conn.ReceiveContext(ctx)
 	if err != nil {
-		return TurnResult{}, fmt.Errorf("failed to receive acknowledgment: %w", err)
+		return fmt.Errorf("failed to receive acknowledgment: %w", err)
 	}
 	if ack != "#" {
 		log.Printf("Warning: expected '#' acknowledgment, got '%s'", ack)
 	}
 
-	return TurnResult{Action: action, Direction: direction, EndedGame: s.Board.GameOver}, nil
+	return nil
 }
 
 // endGame handles game end

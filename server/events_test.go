@@ -77,6 +77,17 @@ func TestSnapshotFromBoard(t *testing.T) {
 		}
 	})
 
+	t.Run("MapFlat の内容確認", func(t *testing.T) {
+		// (y=0, x=0) = Wall = 2
+		if snap.MapFlat[0] != int(Wall) {
+			t.Errorf("MapFlat[0] = %d, want %d (Wall)", snap.MapFlat[0], int(Wall))
+		}
+		// (y=2, x=2) = Item = 3
+		if snap.MapFlat[2*5+2] != int(Item) {
+			t.Errorf("MapFlat[2*5+2] = %d, want %d (Item)", snap.MapFlat[2*5+2], int(Item))
+		}
+	})
+
 	t.Run("MapFlat は深いコピー", func(t *testing.T) {
 		if len(snap.MapFlat) != b.Width*b.Height {
 			t.Errorf("MapFlat len = %d, want %d", len(snap.MapFlat), b.Width*b.Height)
@@ -86,17 +97,6 @@ func TestSnapshotFromBoard(t *testing.T) {
 		b.MapData[2][2] = Wall
 		if snap.MapFlat[2*5+2] != original {
 			t.Error("MapFlat should be a deep copy")
-		}
-	})
-
-	t.Run("MapFlat の内容確認", func(t *testing.T) {
-		// (y=0, x=0) = Wall = 2
-		if snap.MapFlat[0] != int(Wall) {
-			t.Errorf("MapFlat[0] = %d, want %d (Wall)", snap.MapFlat[0], int(Wall))
-		}
-		// (y=2, x=2) = Item = 3
-		if snap.MapFlat[2*5+2] != int(Item) {
-			t.Errorf("MapFlat[2*5+2] = %d, want %d (Item)", snap.MapFlat[2*5+2], int(Item))
 		}
 	})
 }

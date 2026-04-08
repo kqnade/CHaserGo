@@ -46,12 +46,7 @@ func (c *Connection) Receive() (string, error) {
 	// タイムアウト設定（10秒）
 	_ = c.conn.SetReadDeadline(time.Now().Add(10 * time.Second))
 
-	data, err := c.reader.ReadString('\n')
-	if err != nil {
-		return "", fmt.Errorf("failed to receive message: %w", err)
-	}
-
-	return strings.TrimSpace(data), nil
+	return c.readMessage()
 }
 
 // Close closes the connection
@@ -68,6 +63,11 @@ func (c *Connection) ReceiveContext(ctx context.Context) (string, error) {
 	if c.conn == nil {
 		return "", fmt.Errorf("connection is closed")
 	}
+	if err := ctx.Err(); err != nil {
+		return "", err
+	}
+
+	_ = c.conn.SetReadDeadline(time.Now().Add(10 * time.Second))
 
 	done := make(chan struct{})
 	go func() {
@@ -79,7 +79,20 @@ func (c *Connection) ReceiveContext(ctx context.Context) (string, error) {
 	}()
 	defer close(done)
 
-	return c.Receive()
+	msg, err := c.readMessage()
+	if ctxErr := ctx.Err(); ctxErr != nil {
+		return "", ctxErr
+	}
+	return msg, err
+}
+
+func (c *Connection) readMessage() (string, error) {
+	data, err := c.reader.ReadString('\n')
+	if err != nil {
+		return "", fmt.Errorf("failed to receive message: %w", err)
+	}
+
+	return strings.TrimSpace(data), nil
 }
 
 // WaitForReadyContext は ctx キャンセルに対応した WaitForReady

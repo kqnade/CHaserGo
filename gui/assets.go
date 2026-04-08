@@ -90,14 +90,14 @@ var assetBGMWAV []byte
 
 // themeImageData はテーマごとの PNG バイト列をまとめた型
 type themeImageData struct {
-	floor, wall, item, hot, cool []byte
+	floor, block, item, hot, cool []byte
 }
 
 // allThemeData は全テーマの画像データ
 var allThemeData = [ThemeCount]themeImageData{
-	ThemeLight: {assetLightFloor, assetLightBlock, assetLightItem, assetLightHot, assetLightCool},
-	ThemeHeavy: {assetHeavyFloor, assetHeavyBlock, assetHeavyItem, assetHeavyHot, assetHeavyCool},
-	ThemeJewel: {assetJewelFloor, assetJewelBlock, assetJewelItem, assetJewelHot, assetJewelCool},
+	ThemeLight: {floor: assetLightFloor, block: assetLightBlock, item: assetLightItem, hot: assetLightHot, cool: assetLightCool},
+	ThemeHeavy: {floor: assetHeavyFloor, block: assetHeavyBlock, item: assetHeavyItem, hot: assetHeavyHot, cool: assetHeavyCool},
+	ThemeJewel: {floor: assetJewelFloor, block: assetJewelBlock, item: assetJewelItem, hot: assetJewelHot, cool: assetJewelCool},
 }
 
 func mustLoadImage(data []byte) *ebiten.Image {

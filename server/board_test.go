@@ -1,6 +1,7 @@
 package server
 
 import (
+	"reflect"
 	"testing"
 )
 
@@ -101,7 +102,23 @@ func TestSetCell(t *testing.T) {
 	}
 
 	// 境界外は no-op
-	b.SetCell(Position{Y: -1, X: 0}, Item)
+	before := make([][]CellType, len(b.MapData))
+	for y := range b.MapData {
+		before[y] = append([]CellType(nil), b.MapData[y]...)
+	}
+
+	for _, pos := range []Position{
+		{Y: -1, X: 0},
+		{Y: 0, X: -1},
+		{Y: b.Height, X: 0},
+		{Y: 0, X: b.Width},
+	} {
+		b.SetCell(pos, Item)
+	}
+
+	if !reflect.DeepEqual(b.MapData, before) {
+		t.Fatal("SetCell should not modify the board for out-of-bounds positions")
+	}
 }
 
 func TestMove(t *testing.T) {
@@ -201,7 +218,7 @@ func TestLook(t *testing.T) {
 		dir  Direction
 		want CellType
 	}{
-		{Up, Wall},    // (1,1) → (-1,1) = 境界外
+		{Up, Wall},     // (1,1) → (-1,1) = 境界外
 		{Right, Empty}, // (1,1) → (1,3) = Empty
 		{Down, Empty},  // (1,1) → (3,1) = Empty
 		{Left, Wall},   // (1,1) → (1,-1) = 境界外

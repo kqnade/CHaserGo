@@ -21,9 +21,7 @@ jobs:
         go-version: '1.24'
 
     - name: Install X11 dependencies (for ebiten/gui build)
-      run: |
-        sudo apt-get update -q
-        sudo apt-get install -y libasound2-dev libgl1-mesa-dev libx11-dev libxcursor-dev libxi-dev libxinerama-dev libxrandr-dev libxxf86vm-dev
+      uses: ./.github/actions/install-x11-deps
 
     - name: Run tests
       run: go test -v -race -coverprofile=coverage.txt -covermode=atomic ./...
@@ -48,9 +46,7 @@ jobs:
         go-version: '1.24'
 
     - name: Install X11 dependencies (for ebiten/gui build)
-      run: |
-        sudo apt-get update -q
-        sudo apt-get install -y libasound2-dev libgl1-mesa-dev libx11-dev libxcursor-dev libxi-dev libxinerama-dev libxrandr-dev libxxf86vm-dev
+      uses: ./.github/actions/install-x11-deps
 
     - name: Build tools
       run: |
@@ -81,9 +77,7 @@ jobs:
         go-version: '1.24'
 
     - name: Install X11 dependencies (for ebiten/gui build)
-      run: |
-        sudo apt-get update -q
-        sudo apt-get install -y libasound2-dev libgl1-mesa-dev libx11-dev libxcursor-dev libxi-dev libxinerama-dev libxrandr-dev libxxf86vm-dev
+      uses: ./.github/actions/install-x11-deps
 
     - name: Run golangci-lint
       uses: golangci/golangci-lint-action@v4
@@ -108,9 +102,7 @@ jobs:
 
     - name: Install X11 dependencies (Linux only, for ebiten/gui build)
       if: runner.os == 'Linux'
-      run: |
-        sudo apt-get update -q
-        sudo apt-get install -y libasound2-dev libgl1-mesa-dev libx11-dev libxcursor-dev libxi-dev libxinerama-dev libxrandr-dev libxxf86vm-dev
+      uses: ./.github/actions/install-x11-deps
 
     - name: Build client library
       run: go build ./chaser

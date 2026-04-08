@@ -36,7 +36,7 @@ func (r *BoardRenderer) load() {
 			d := allThemeData[t]
 			r.allTiles[t] = tiles{
 				floor: mustLoadImage(d.floor),
-				wall:  mustLoadImage(d.wall),
+				wall:  mustLoadImage(d.block),
 				item:  mustLoadImage(d.item),
 				hot:   mustLoadImage(d.hot),
 				cool:  mustLoadImage(d.cool),
@@ -58,6 +58,9 @@ func (r *BoardRenderer) CurrentTheme() Theme {
 // Draw はゲームボードを描画する
 func (r *BoardRenderer) Draw(screen *ebiten.Image, snap *server.BoardSnapshot) {
 	r.load()
+	if snap == nil || snap.Width <= 0 || snap.Height <= 0 {
+		return
+	}
 
 	tx := r.allTiles[r.currentTheme]
 	boardAreaH := ScreenHeight - HUDHeight

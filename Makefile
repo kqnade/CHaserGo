@@ -68,6 +68,7 @@ mapgen: build-mapgen
 install:
 	@echo "Installing commands..."
 	@go install ./cmd/chaser-server
+	@go install ./cmd/chaser-server-gui
 	@go install ./cmd/chaser-mapgen
 
 # フォーマット

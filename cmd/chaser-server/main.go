@@ -61,17 +61,36 @@ func main() {
 			os.Exit(1)
 		}
 	} else {
+		var tmp *os.File
+		cleanupTemp := func() {
+			if tmp != nil {
+				_ = tmp.Close()
+				tmp = nil
+			}
+			if mapPath != "" {
+				_ = os.Remove(mapPath)
+			}
+		}
+
 		tmp, err := os.CreateTemp("", "chaser-*.map")
 		if err != nil {
-			log.Fatalf("Failed to create temp map file: %v", err)
+			log.Printf("Failed to create temp map file: %v", err)
+			os.Exit(1)
 		}
 		mapPath = tmp.Name()
-		tmp.Close()
+		if err := tmp.Close(); err != nil {
+			cleanupTemp()
+			log.Printf("Failed to close temp map file: %v", err)
+			os.Exit(1)
+		}
+		tmp = nil
 		defer os.Remove(mapPath)
 
 		m := mapgen.NewGenerator().GenerateMap(9, 10)
 		if err := m.SaveToFile(mapPath); err != nil {
-			log.Fatalf("Failed to generate map: %v", err)
+			cleanupTemp()
+			log.Printf("Failed to generate map: %v", err)
+			os.Exit(1)
 		}
 		log.Printf("No map file specified. Auto-generated: %s", mapPath)
 	}

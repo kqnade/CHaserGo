@@ -1,15 +1,47 @@
 package server
 
 import (
+	"context"
+	"errors"
+	"net"
 	"testing"
+	"time"
 )
+
+func TestReceiveContextCanceled(t *testing.T) {
+	client, server := net.Pipe()
+	defer client.Close()
+	defer server.Close()
+
+	conn := NewConnection(server)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	done := make(chan error, 1)
+	go func() {
+		_, err := conn.ReceiveContext(ctx)
+		done <- err
+	}()
+
+	time.Sleep(20 * time.Millisecond)
+	cancel()
+
+	select {
+	case err := <-done:
+		if !errors.Is(err, context.Canceled) {
+			t.Fatalf("ReceiveContext error = %v, want %v", err, context.Canceled)
+		}
+	case <-time.After(500 * time.Millisecond):
+		t.Fatal("ReceiveContext did not return promptly after context cancellation")
+	}
+}
 
 func TestParseAction(t *testing.T) {
 	tests := []struct {
-		input     string
-		wantAct   string
-		wantDir   Direction
-		wantErr   bool
+		input   string
+		wantAct string
+		wantDir Direction
+		wantErr bool
 	}{
 		{"wu", "wk", Up, false},
 		{"wd", "wk", Down, false},
