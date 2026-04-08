@@ -28,7 +28,10 @@ type ServerConfig struct {
 	CoolPort   int
 	DumpPath   string
 	EnableDump bool
-	SnapshotCh chan BoardSnapshot // nil = no-op
+	// SnapshotCh receives board snapshots after each action.
+	// Must be nil (disables snapshots) or a buffered channel (cap >= 1).
+	// NewServer returns an error if an unbuffered channel is supplied.
+	SnapshotCh chan BoardSnapshot
 }
 
 // NewServer creates a new CHaser server
@@ -43,19 +46,18 @@ func NewServer(config ServerConfig) (*Server, error) {
 		return nil, fmt.Errorf("failed to initialize dump system: %w", err)
 	}
 
+	// SnapshotCh must be nil (no-op) or a buffered channel.
+	// publishSnapshot uses overwrite semantics (plain send after draining),
+	// which relies on the channel having capacity ≥ 1.
+	if config.SnapshotCh != nil && cap(config.SnapshotCh) == 0 {
+		return nil, fmt.Errorf("ServerConfig.SnapshotCh must be a buffered channel (cap >= 1); got unbuffered")
+	}
+
 	s := &Server{
 		config:     config,
 		Board:      board,
 		DumpSystem: dumpSystem,
 		snapshotCh: config.SnapshotCh,
-	}
-
-	// An unbuffered (cap == 0) non-nil channel would deadlock in
-	// publishSnapshot's overwrite fallback (plain send at line 393).
-	// Upgrade silently to a buffered channel so callers don't have to
-	// remember this invariant.  nil remains the intended no-op path.
-	if s.snapshotCh != nil && cap(s.snapshotCh) == 0 {
-		s.snapshotCh = make(chan BoardSnapshot, 1)
 	}
 
 	s.publishSnapshot(KindInitial, TurnStepFirst, PhaseWaiting, "", "")

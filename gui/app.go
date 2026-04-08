@@ -65,7 +65,7 @@ func (a *App) Update() error {
 		a.renderer.NextTheme()
 	}
 
-	if ebiten.IsKeyPressed(ebiten.KeyEscape) {
+	if ebiten.IsKeyPressed(ebiten.KeyEscape) || ebiten.IsKeyPressed(ebiten.KeyQ) {
 		if a.bgmPlayer != nil {
 			a.bgmPlayer.Close()
 		}
