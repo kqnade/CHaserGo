@@ -1,0 +1,11 @@
+name: Install X11 Dependencies
+description: Install Linux packages required for Ebiten GUI builds.
+
+runs:
+  using: composite
+  steps:
+    - name: Install X11 dependencies
+      shell: bash
+      run: |
+        sudo apt-get update -q
+        sudo apt-get install -y libasound2-dev libgl1-mesa-dev libx11-dev libxcursor-dev libxi-dev libxinerama-dev libxrandr-dev libxxf86vm-dev

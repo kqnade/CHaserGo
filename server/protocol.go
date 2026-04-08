@@ -2,6 +2,7 @@ package server
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"net"
 	"strings"
@@ -36,6 +37,58 @@ func (c *Connection) Send(message string) error {
 	return nil
 }
 
+// SendContext sends a string message respecting ctx cancellation and deadline.
+// It mirrors the goroutine pattern used by ReceiveContext to interrupt the write
+// promptly when ctx is cancelled.
+func (c *Connection) SendContext(ctx context.Context, message string) error {
+	if c.conn == nil {
+		return fmt.Errorf("connection is closed")
+	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+
+	deadline, ok := ctx.Deadline()
+	if !ok {
+		deadline = time.Now().Add(10 * time.Second)
+	}
+	_ = c.conn.SetWriteDeadline(deadline)
+
+	done := make(chan struct{})
+	go func() {
+		select {
+		case <-ctx.Done():
+			_ = c.conn.SetWriteDeadline(time.Now())
+		case <-done:
+		}
+	}()
+	defer close(done)
+
+	_, err := c.conn.Write([]byte(message))
+	if ctxErr := ctx.Err(); ctxErr != nil {
+		return ctxErr
+	}
+	if err != nil {
+		return fmt.Errorf("failed to send message: %w", err)
+	}
+	return nil
+}
+
+// SendResponseContext sends the 10-value response respecting ctx.
+func (c *Connection) SendResponseContext(ctx context.Context, values [10]int) error {
+	var message string
+	for _, v := range values {
+		message += fmt.Sprintf("%d", v)
+	}
+	message += "\n"
+	return c.SendContext(ctx, message)
+}
+
+// SendGameOverContext sends the game over signal respecting ctx.
+func (c *Connection) SendGameOverContext(ctx context.Context) error {
+	return c.SendContext(ctx, "#\n")
+}
+
 // Receive receives a message from the client
 func (c *Connection) Receive() (string, error) {
 	if c.conn == nil {
@@ -45,12 +98,7 @@ func (c *Connection) Receive() (string, error) {
 	// タイムアウト設定（10秒）
 	_ = c.conn.SetReadDeadline(time.Now().Add(10 * time.Second))
 
-	data, err := c.reader.ReadString('\n')
-	if err != nil {
-		return "", fmt.Errorf("failed to receive message: %w", err)
-	}
-
-	return strings.TrimSpace(data), nil
+	return c.readMessage()
 }
 
 // Close closes the connection
@@ -59,6 +107,61 @@ func (c *Connection) Close() error {
 		return c.conn.Close()
 	}
 	return nil
+}
+
+// ReceiveContext は ctx キャンセルに対応した Receive
+// ctx がキャンセルされると ReadDeadline を即時に設定して read を割り込む
+func (c *Connection) ReceiveContext(ctx context.Context) (string, error) {
+	if c.conn == nil {
+		return "", fmt.Errorf("connection is closed")
+	}
+	if err := ctx.Err(); err != nil {
+		return "", err
+	}
+
+	_ = c.conn.SetReadDeadline(time.Now().Add(10 * time.Second))
+
+	done := make(chan struct{})
+	go func() {
+		select {
+		case <-ctx.Done():
+			_ = c.conn.SetReadDeadline(time.Now())
+		case <-done:
+		}
+	}()
+	defer close(done)
+
+	msg, err := c.readMessage()
+	if ctxErr := ctx.Err(); ctxErr != nil {
+		return "", ctxErr
+	}
+	return msg, err
+}
+
+func (c *Connection) readMessage() (string, error) {
+	data, err := c.reader.ReadString('\n')
+	if err != nil {
+		return "", fmt.Errorf("failed to receive message: %w", err)
+	}
+
+	return strings.TrimSpace(data), nil
+}
+
+// WaitForReadyContext は ctx キャンセルに対応した WaitForReady
+func (c *Connection) WaitForReadyContext(ctx context.Context) error {
+	msg, err := c.ReceiveContext(ctx)
+	if err != nil {
+		return err
+	}
+	if msg != "gr" {
+		return fmt.Errorf("expected 'gr', got '%s'", msg)
+	}
+	return nil
+}
+
+// ReceiveActionContext は ctx キャンセルに対応した ReceiveAction
+func (c *Connection) ReceiveActionContext(ctx context.Context) (string, error) {
+	return c.ReceiveContext(ctx)
 }
 
 // WaitForReady waits for "gr" (get ready) command

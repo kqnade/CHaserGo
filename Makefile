@@ -1,4 +1,4 @@
-.PHONY: all build test clean install fmt lint integration-test mapgen help
+.PHONY: all build test clean install fmt lint integration-test mapgen help build-server-gui
 
 # デフォルトターゲット
 all: build
@@ -9,6 +9,7 @@ help:
 	@echo ""
 	@echo "Targets:"
 	@echo "  make build            - Build all binaries"
+	@echo "  make build-server-gui - Build GUI server binary"
 	@echo "  make test             - Run unit tests"
 	@echo "  make integration-test - Run integration tests"
 	@echo "  make mapgen           - Generate sample maps"
@@ -18,11 +19,15 @@ help:
 	@echo "  make clean            - Clean build artifacts"
 
 # ビルド
-build: build-server build-mapgen build-examples
+build: build-server build-server-gui build-mapgen build-examples
 
 build-server:
 	@echo "Building chaser-server..."
 	@go build -o bin/chaser-server ./cmd/chaser-server
+
+build-server-gui:
+	@echo "Building chaser-server-gui..."
+	@go build -o bin/chaser-server-gui ./cmd/chaser-server-gui
 
 build-mapgen:
 	@echo "Building chaser-mapgen..."
@@ -63,6 +68,7 @@ mapgen: build-mapgen
 install:
 	@echo "Installing commands..."
 	@go install ./cmd/chaser-server
+	@go install ./cmd/chaser-server-gui
 	@go install ./cmd/chaser-mapgen
 
 # フォーマット
