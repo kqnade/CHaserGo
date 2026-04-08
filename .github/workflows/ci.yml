@@ -23,7 +23,7 @@ jobs:
     - name: Install X11 dependencies (for ebiten/gui build)
       run: |
         sudo apt-get update -q
-        sudo apt-get install -y libgl1-mesa-dev libx11-dev libxcursor-dev libxi-dev libxinerama-dev libxrandr-dev libxxf86vm-dev
+        sudo apt-get install -y libasound2-dev libgl1-mesa-dev libx11-dev libxcursor-dev libxi-dev libxinerama-dev libxrandr-dev libxxf86vm-dev
 
     - name: Run tests
       run: go test -v -race -coverprofile=coverage.txt -covermode=atomic ./...
@@ -50,7 +50,7 @@ jobs:
     - name: Install X11 dependencies (for ebiten/gui build)
       run: |
         sudo apt-get update -q
-        sudo apt-get install -y libgl1-mesa-dev libx11-dev libxcursor-dev libxi-dev libxinerama-dev libxrandr-dev libxxf86vm-dev
+        sudo apt-get install -y libasound2-dev libgl1-mesa-dev libx11-dev libxcursor-dev libxi-dev libxinerama-dev libxrandr-dev libxxf86vm-dev
 
     - name: Build tools
       run: |
@@ -83,7 +83,7 @@ jobs:
     - name: Install X11 dependencies (for ebiten/gui build)
       run: |
         sudo apt-get update -q
-        sudo apt-get install -y libgl1-mesa-dev libx11-dev libxcursor-dev libxi-dev libxinerama-dev libxrandr-dev libxxf86vm-dev
+        sudo apt-get install -y libasound2-dev libgl1-mesa-dev libx11-dev libxcursor-dev libxi-dev libxinerama-dev libxrandr-dev libxxf86vm-dev
 
     - name: Run golangci-lint
       uses: golangci/golangci-lint-action@v4
@@ -110,7 +110,7 @@ jobs:
       if: runner.os == 'Linux'
       run: |
         sudo apt-get update -q
-        sudo apt-get install -y libgl1-mesa-dev libx11-dev libxcursor-dev libxi-dev libxinerama-dev libxrandr-dev libxxf86vm-dev
+        sudo apt-get install -y libasound2-dev libgl1-mesa-dev libx11-dev libxcursor-dev libxi-dev libxinerama-dev libxrandr-dev libxxf86vm-dev
 
     - name: Build client library
       run: go build ./chaser
