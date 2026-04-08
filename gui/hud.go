@@ -22,6 +22,9 @@ func NewHUD() *HUD {
 
 // Draw はHUD領域（画面下部 HUDHeight px）に情報を描画する
 func (h *HUD) Draw(screen *ebiten.Image, snap *server.BoardSnapshot) {
+	if snap == nil {
+		return
+	}
 	y := ScreenHeight - HUDHeight
 
 	// 背景

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"log"
@@ -109,7 +110,9 @@ func main() {
 		log.Println("=========================")
 
 		if err := srv.Start(ctx); err != nil {
-			log.Printf("Server error: %v", err)
+			if !errors.Is(err, context.Canceled) {
+				log.Printf("Server error: %v", err)
+			}
 			cancel()
 		}
 		close(ch)

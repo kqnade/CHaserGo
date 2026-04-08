@@ -85,9 +85,9 @@ func (r *BoardRenderer) Draw(screen *ebiten.Image, snap *server.BoardSnapshot) {
 
 func (r *BoardRenderer) cellTile(tx tiles, cell int) *ebiten.Image {
 	switch cell {
-	case 2:
+	case int(server.Wall):
 		return tx.wall
-	case 3:
+	case int(server.Item):
 		return tx.item
 	default:
 		return tx.floor

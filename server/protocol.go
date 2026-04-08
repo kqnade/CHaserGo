@@ -76,12 +76,12 @@ func (c *Connection) SendContext(ctx context.Context, message string) error {
 
 // SendResponseContext sends the 10-value response respecting ctx.
 func (c *Connection) SendResponseContext(ctx context.Context, values [10]int) error {
-	var message string
+	var sb strings.Builder
 	for _, v := range values {
-		message += fmt.Sprintf("%d", v)
+		sb.WriteString(fmt.Sprintf("%d", v))
 	}
-	message += "\n"
-	return c.SendContext(ctx, message)
+	sb.WriteString("\n")
+	return c.SendContext(ctx, sb.String())
 }
 
 // SendGameOverContext sends the game over signal respecting ctx.
@@ -119,7 +119,11 @@ func (c *Connection) ReceiveContext(ctx context.Context) (string, error) {
 		return "", err
 	}
 
-	_ = c.conn.SetReadDeadline(time.Now().Add(10 * time.Second))
+	deadline, ok := ctx.Deadline()
+	if !ok {
+		deadline = time.Now().Add(10 * time.Second)
+	}
+	_ = c.conn.SetReadDeadline(deadline)
 
 	done := make(chan struct{})
 	go func() {

@@ -81,6 +81,8 @@ func (a *App) Update() error {
 			a.bgmPlayer.Play()
 		case snap != nil && snap.Phase == server.PhaseGameOver && a.bgmPlayer.IsPlaying():
 			a.bgmPlayer.Pause()
+		case snap != nil && snap.Phase == server.PhaseError && a.bgmPlayer.IsPlaying():
+			a.bgmPlayer.Pause()
 		}
 	}
 
@@ -97,6 +99,15 @@ func (a *App) Draw(screen *ebiten.Image) {
 			msg = "Waiting for players to connect..."
 		}
 		drawWaitingScreen(screen, msg)
+		return
+	}
+
+	if snap.Phase == server.PhaseError {
+		msg := snap.Reason
+		if msg == "" {
+			msg = "Server error"
+		}
+		drawWaitingScreen(screen, "Error: "+msg)
 		return
 	}
 
