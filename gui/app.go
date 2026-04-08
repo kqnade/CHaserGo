@@ -10,6 +10,7 @@ import (
 	"github.com/hajimehoshi/ebiten/v2/audio"
 	"github.com/hajimehoshi/ebiten/v2/audio/wav"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
+	"github.com/hajimehoshi/ebiten/v2/inpututil"
 	"github.com/kqnade/CHaserGo/server"
 )
 
@@ -60,6 +61,10 @@ func NewApp(state *GameState, cancel context.CancelFunc) *App {
 
 // Update is called every tick (60fps)
 func (a *App) Update() error {
+	if inpututil.IsKeyJustPressed(ebiten.KeyT) {
+		a.renderer.NextTheme()
+	}
+
 	if ebiten.IsKeyPressed(ebiten.KeyEscape) {
 		if a.bgmPlayer != nil {
 			a.bgmPlayer.Close()

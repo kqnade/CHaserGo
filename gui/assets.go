@@ -9,27 +9,96 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 )
 
-// タイル・キャラクター画像（Light テーマ）
+// Theme はタイルテーマの種別
+type Theme int
+
+const (
+	ThemeLight Theme = iota
+	ThemeHeavy
+	ThemeJewel
+	ThemeCount
+)
+
+func (t Theme) String() string {
+	switch t {
+	case ThemeLight:
+		return "Light"
+	case ThemeHeavy:
+		return "Heavy"
+	case ThemeJewel:
+		return "Jewel"
+	default:
+		return "Unknown"
+	}
+}
+
+// Light テーマ
 
 //go:embed assets/images/Light/Floor.png
-var assetFloor []byte
+var assetLightFloor []byte
 
 //go:embed assets/images/Light/Block.png
-var assetBlock []byte
+var assetLightBlock []byte
 
 //go:embed assets/images/Light/Item.png
-var assetItem []byte
+var assetLightItem []byte
 
 //go:embed assets/images/Light/Hot.png
-var assetHot []byte
+var assetLightHot []byte
 
 //go:embed assets/images/Light/Cool.png
-var assetCool []byte
+var assetLightCool []byte
+
+// Heavy テーマ
+
+//go:embed assets/images/Heavy/Floor.png
+var assetHeavyFloor []byte
+
+//go:embed assets/images/Heavy/Block.png
+var assetHeavyBlock []byte
+
+//go:embed assets/images/Heavy/Item.png
+var assetHeavyItem []byte
+
+//go:embed assets/images/Heavy/Hot.png
+var assetHeavyHot []byte
+
+//go:embed assets/images/Heavy/Cool.png
+var assetHeavyCool []byte
+
+// Jewel テーマ
+
+//go:embed assets/images/Jewel/Floor.png
+var assetJewelFloor []byte
+
+//go:embed assets/images/Jewel/Block.png
+var assetJewelBlock []byte
+
+//go:embed assets/images/Jewel/Item.png
+var assetJewelItem []byte
+
+//go:embed assets/images/Jewel/Hot.png
+var assetJewelHot []byte
+
+//go:embed assets/images/Jewel/Cool.png
+var assetJewelCool []byte
 
 // BGM
 
 //go:embed assets/sounds/ji_023.wav
 var assetBGMWAV []byte
+
+// themeImageData はテーマごとの PNG バイト列をまとめた型
+type themeImageData struct {
+	floor, wall, item, hot, cool []byte
+}
+
+// allThemeData は全テーマの画像データ
+var allThemeData = [ThemeCount]themeImageData{
+	ThemeLight: {assetLightFloor, assetLightBlock, assetLightItem, assetLightHot, assetLightCool},
+	ThemeHeavy: {assetHeavyFloor, assetHeavyBlock, assetHeavyItem, assetHeavyHot, assetHeavyCool},
+	ThemeJewel: {assetJewelFloor, assetJewelBlock, assetJewelItem, assetJewelHot, assetJewelCool},
+}
 
 func mustLoadImage(data []byte) *ebiten.Image {
 	img, _, err := image.Decode(bytes.NewReader(data))

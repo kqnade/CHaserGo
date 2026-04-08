@@ -1,9 +1,11 @@
 package gui
 
 import (
+	"fmt"
 	"sync"
 
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 	"github.com/kqnade/CHaserGo/server"
 )
 
@@ -17,30 +19,47 @@ type tiles struct {
 
 // BoardRenderer はゲームフィールドを描画する
 type BoardRenderer struct {
-	tiles    tiles
-	loadOnce sync.Once
+	allTiles     [ThemeCount]tiles
+	loadOnce     sync.Once
+	currentTheme Theme
 }
 
 // NewBoardRenderer creates a new BoardRenderer
 func NewBoardRenderer() *BoardRenderer {
-	return &BoardRenderer{}
+	return &BoardRenderer{currentTheme: ThemeLight}
 }
 
-// load は最初の Draw 呼び出し時にテクスチャを初期化する（GPU コンテキストが必要）
+// load は最初の Draw 呼び出し時に全テーマのテクスチャを初期化する
 func (r *BoardRenderer) load() {
 	r.loadOnce.Do(func() {
-		r.tiles.floor = mustLoadImage(assetFloor)
-		r.tiles.wall = mustLoadImage(assetBlock)
-		r.tiles.item = mustLoadImage(assetItem)
-		r.tiles.hot = mustLoadImage(assetHot)
-		r.tiles.cool = mustLoadImage(assetCool)
+		for t := Theme(0); t < ThemeCount; t++ {
+			d := allThemeData[t]
+			r.allTiles[t] = tiles{
+				floor: mustLoadImage(d.floor),
+				wall:  mustLoadImage(d.wall),
+				item:  mustLoadImage(d.item),
+				hot:   mustLoadImage(d.hot),
+				cool:  mustLoadImage(d.cool),
+			}
+		}
 	})
+}
+
+// NextTheme は次のテーマに切り替える
+func (r *BoardRenderer) NextTheme() {
+	r.currentTheme = (r.currentTheme + 1) % ThemeCount
+}
+
+// CurrentTheme は現在のテーマを返す
+func (r *BoardRenderer) CurrentTheme() Theme {
+	return r.currentTheme
 }
 
 // Draw はゲームボードを描画する
 func (r *BoardRenderer) Draw(screen *ebiten.Image, snap *server.BoardSnapshot) {
 	r.load()
 
+	tx := r.allTiles[r.currentTheme]
 	boardAreaH := ScreenHeight - HUDHeight
 	tileSize := min(ScreenWidth/snap.Width, boardAreaH/snap.Height, 40)
 	offsetX := (ScreenWidth - tileSize*snap.Width) / 2
@@ -49,22 +68,26 @@ func (r *BoardRenderer) Draw(screen *ebiten.Image, snap *server.BoardSnapshot) {
 	for y := 0; y < snap.Height; y++ {
 		for x := 0; x < snap.Width; x++ {
 			cell := snap.MapFlat[y*snap.Width+x]
-			r.drawTile(screen, r.cellTile(cell), offsetX+x*tileSize, offsetY+y*tileSize, tileSize)
+			r.drawTile(screen, r.cellTile(tx, cell), offsetX+x*tileSize, offsetY+y*tileSize, tileSize)
 		}
 	}
 
-	r.drawCharacter(screen, r.tiles.hot, snap.HotAlive, offsetX+snap.HotX*tileSize, offsetY+snap.HotY*tileSize, tileSize)
-	r.drawCharacter(screen, r.tiles.cool, snap.CoolAlive, offsetX+snap.CoolX*tileSize, offsetY+snap.CoolY*tileSize, tileSize)
+	r.drawCharacter(screen, tx.hot, snap.HotAlive, offsetX+snap.HotX*tileSize, offsetY+snap.HotY*tileSize, tileSize)
+	r.drawCharacter(screen, tx.cool, snap.CoolAlive, offsetX+snap.CoolX*tileSize, offsetY+snap.CoolY*tileSize, tileSize)
+
+	// 現在のテーマ名を右上に表示
+	label := fmt.Sprintf("Theme: %s [T]", r.currentTheme)
+	ebitenutil.DebugPrintAt(screen, label, ScreenWidth-len(label)*7, 4)
 }
 
-func (r *BoardRenderer) cellTile(cell int) *ebiten.Image {
+func (r *BoardRenderer) cellTile(tx tiles, cell int) *ebiten.Image {
 	switch cell {
 	case 2:
-		return r.tiles.wall
+		return tx.wall
 	case 3:
-		return r.tiles.item
+		return tx.item
 	default:
-		return r.tiles.floor
+		return tx.floor
 	}
 }
 
