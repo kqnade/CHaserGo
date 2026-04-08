@@ -50,6 +50,14 @@ func NewServer(config ServerConfig) (*Server, error) {
 		snapshotCh: config.SnapshotCh,
 	}
 
+	// An unbuffered (cap == 0) non-nil channel would deadlock in
+	// publishSnapshot's overwrite fallback (plain send at line 393).
+	// Upgrade silently to a buffered channel so callers don't have to
+	// remember this invariant.  nil remains the intended no-op path.
+	if s.snapshotCh != nil && cap(s.snapshotCh) == 0 {
+		s.snapshotCh = make(chan BoardSnapshot, 1)
+	}
+
 	s.publishSnapshot(KindInitial, TurnStepFirst, PhaseWaiting, "", "")
 	return s, nil
 }
