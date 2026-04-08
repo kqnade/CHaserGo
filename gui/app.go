@@ -114,5 +114,5 @@ func drawWaitingScreen(screen *ebiten.Image, msg string) {
 	screen.Fill(color.RGBA{R: 30, G: 30, B: 30, A: 255})
 	ebitenutil.DebugPrintAt(screen, "CHaser Server GUI", ScreenWidth/2-80, ScreenHeight/2-20)
 	ebitenutil.DebugPrintAt(screen, msg, ScreenWidth/2-len(msg)*3, ScreenHeight/2)
-	ebitenutil.DebugPrintAt(screen, "Press ESC to quit", ScreenWidth/2-80, ScreenHeight/2+20)
+	ebitenutil.DebugPrintAt(screen, "Press ESC or Q to quit", ScreenWidth/2-88, ScreenHeight/2+20)
 }

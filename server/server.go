@@ -36,6 +36,12 @@ type ServerConfig struct {
 
 // NewServer creates a new CHaser server
 func NewServer(config ServerConfig) (*Server, error) {
+	// Validate config before allocating any resources so no cleanup is needed
+	// on the error path. publishSnapshot relies on buffered send semantics.
+	if config.SnapshotCh != nil && cap(config.SnapshotCh) == 0 {
+		return nil, fmt.Errorf("ServerConfig.SnapshotCh must be a buffered channel (cap >= 1); got unbuffered")
+	}
+
 	board, err := NewBoard(config.MapPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load board: %w", err)
@@ -44,13 +50,6 @@ func NewServer(config ServerConfig) (*Server, error) {
 	dumpSystem, err := NewDumpSystem(config.DumpPath, config.MapPath, config.EnableDump)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize dump system: %w", err)
-	}
-
-	// SnapshotCh must be nil (no-op) or a buffered channel.
-	// publishSnapshot uses overwrite semantics (plain send after draining),
-	// which relies on the channel having capacity ≥ 1.
-	if config.SnapshotCh != nil && cap(config.SnapshotCh) == 0 {
-		return nil, fmt.Errorf("ServerConfig.SnapshotCh must be a buffered channel (cap >= 1); got unbuffered")
 	}
 
 	s := &Server{
@@ -175,13 +174,13 @@ func (s *Server) acceptConnectionWithContext(ctx context.Context, port int, play
 	var conn net.Conn
 	select {
 	case <-ctx.Done():
-		// Drain any result that arrived in the same scheduling window so
-		// the accepted socket is not leaked.
+		// Close the listener to unblock Accept() in the goroutine, then
+		// wait for it to finish so any already-accepted socket is closed.
+		listener.Close()
 		select {
 		case c := <-acceptChan:
 			c.Close()
 		case <-acceptErrChan:
-		default:
 		}
 		return nil, "", ctx.Err()
 	case err := <-acceptErrChan:
@@ -259,12 +258,12 @@ func (s *Server) runGame(ctx context.Context) error {
 		}
 	}
 
-	return s.endGame()
+	return s.endGame(ctx)
 }
 
 // processTurn processes one player's turn
 func (s *Server) processTurn(ctx context.Context, conn *Connection, char *Character, opponent *Character) error {
-	if err := conn.Send("Ready\n"); err != nil {
+	if err := conn.SendContext(ctx, "Ready\n"); err != nil {
 		return fmt.Errorf("failed to send ready: %w", err)
 	}
 
@@ -296,7 +295,7 @@ func (s *Server) processTurn(ctx context.Context, conn *Connection, char *Charac
 		}
 	}
 
-	if err := conn.SendResponse(readyResponse); err != nil {
+	if err := conn.SendResponseContext(ctx, readyResponse); err != nil {
 		return fmt.Errorf("failed to send ready response: %w", err)
 	}
 
@@ -333,7 +332,7 @@ func (s *Server) processTurn(ctx context.Context, conn *Connection, char *Charac
 		response = BuildPutResponse(char, opponent, s.Board)
 	}
 
-	if err := conn.SendResponse(response); err != nil {
+	if err := conn.SendResponseContext(ctx, response); err != nil {
 		return fmt.Errorf("failed to send response: %w", err)
 	}
 
@@ -350,7 +349,7 @@ func (s *Server) processTurn(ctx context.Context, conn *Connection, char *Charac
 }
 
 // endGame handles game end
-func (s *Server) endGame() error {
+func (s *Server) endGame(ctx context.Context) error {
 	log.Println("Game Over!")
 
 	winner, reason := s.Board.GetResult()
@@ -375,10 +374,10 @@ func (s *Server) endGame() error {
 	s.publishSnapshot(KindGameOver, TurnStepFirst, PhaseGameOver, winnerName, reason)
 
 	if s.HotConn != nil {
-		_ = s.HotConn.SendGameOver()
+		_ = s.HotConn.SendGameOverContext(ctx)
 	}
 	if s.CoolConn != nil {
-		_ = s.CoolConn.SendGameOver()
+		_ = s.CoolConn.SendGameOverContext(ctx)
 	}
 
 	return nil
