@@ -68,6 +68,15 @@ func main() {
 		os.Exit(1)
 	}
 
+	if *blockNum < 0 {
+		fmt.Fprintf(os.Stderr, "Error: -b/--blockNum must be non-negative\n")
+		os.Exit(1)
+	}
+	if *itemNum < 0 {
+		fmt.Fprintf(os.Stderr, "Error: -i/--itemNum must be non-negative\n")
+		os.Exit(1)
+	}
+
 	// ジェネレーター作成
 	var gen *mapgen.Generator
 	if *seed != 0 {

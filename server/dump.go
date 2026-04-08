@@ -68,6 +68,20 @@ func readMapData(mapPath string) ([]string, error) {
 	return lines, nil
 }
 
+// sanitizeDumpField はダンプフォーマットを壊す文字（カンマ・改行）を除去する
+func sanitizeDumpField(s string) string {
+	result := make([]byte, 0, len(s))
+	for i := 0; i < len(s); i++ {
+		switch s[i] {
+		case ',', '\n', '\r':
+			// skip
+		default:
+			result = append(result, s[i])
+		}
+	}
+	return string(result)
+}
+
 // SetNames writes the player names to the dump file
 func (d *DumpSystem) SetNames(hotName, coolName string) error {
 	if !d.enabled {
@@ -75,7 +89,7 @@ func (d *DumpSystem) SetNames(hotName, coolName string) error {
 	}
 
 	// プレイヤー名を書き込み
-	_, err := d.writer.WriteString(fmt.Sprintf("%s,%s\n", hotName, coolName))
+	_, err := d.writer.WriteString(fmt.Sprintf("%s,%s\n", sanitizeDumpField(hotName), sanitizeDumpField(coolName)))
 	if err != nil {
 		return err
 	}
@@ -151,9 +165,9 @@ func (d *DumpSystem) Result(winner *Character, loser *Character, reason string) 
 	// 勝敗情報
 	if winner == nil {
 		// 引き分け
-		_, err = d.writer.WriteString(fmt.Sprintf("draw,draw,%s\n", reason))
+		_, err = d.writer.WriteString(fmt.Sprintf("draw,draw,%s\n", sanitizeDumpField(reason)))
 	} else {
-		_, err = d.writer.WriteString(fmt.Sprintf("%s,win,%s\n", winner.Name, reason))
+		_, err = d.writer.WriteString(fmt.Sprintf("%s,win,%s\n", sanitizeDumpField(winner.Name), sanitizeDumpField(reason)))
 	}
 
 	if err != nil {

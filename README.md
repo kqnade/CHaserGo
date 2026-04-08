@@ -79,7 +79,7 @@ import (
     "fmt"
     "log"
 
-    "CHaserGo/chaser"
+    "github.com/kqnade/CHaserGo/chaser"
 )
 
 func main() {

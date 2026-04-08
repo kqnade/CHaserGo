@@ -28,6 +28,10 @@ type ServerConfig struct {
 	CoolPort   int
 	DumpPath   string
 	EnableDump bool
+	// BindAddr はサーバーがリッスンするアドレス。
+	// 空文字の場合は "127.0.0.1"（ローカルのみ）にデフォルトする。
+	// 外部公開が必要な場合は "0.0.0.0" を明示指定する。
+	BindAddr string
 	// SnapshotCh receives board snapshots after each action.
 	// Must be nil (disables snapshots) or a buffered channel (cap >= 1).
 	// NewServer returns an error if an unbuffered channel is supplied.
@@ -149,7 +153,11 @@ func (s *Server) Start(ctx context.Context) error {
 
 // acceptConnectionWithContext accepts a connection on the specified port with context support
 func (s *Server) acceptConnectionWithContext(ctx context.Context, port int, playerType string) (*Connection, string, error) {
-	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
+	bindAddr := s.config.BindAddr
+	if bindAddr == "" {
+		bindAddr = "127.0.0.1"
+	}
+	listener, err := net.Listen("tcp", fmt.Sprintf("%s:%d", bindAddr, port))
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to listen on port %d: %w", port, err)
 	}

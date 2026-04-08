@@ -54,6 +54,12 @@ func NewGeneratorWithSeed(seed int64) *Generator {
 
 // GenerateMap generates a random map
 func (g *Generator) GenerateMap(maxBlocks, maxItems int) *Map {
+	if maxBlocks < 0 {
+		maxBlocks = 0
+	}
+	if maxItems < 0 {
+		maxItems = 0
+	}
 	// 小マップ（7×8）を生成
 	smallMap := g.generateSmallMap(7, 8, maxBlocks, maxItems)
 

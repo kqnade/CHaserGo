@@ -25,6 +25,8 @@ func main() {
 	dumpPath := flag.String("d", "./chaser.dump", "Dump file output path")
 	flag.StringVar(dumpPath, "dump-path", "./chaser.dump", "Dump file output path")
 
+	bindAddr := flag.String("bind", "127.0.0.1", "Address to bind (use 0.0.0.0 to expose to network)")
+
 	noDump := flag.Bool("nd", false, "Disable dump output")
 	flag.BoolVar(noDump, "non-dump", false, "Disable dump output")
 
@@ -102,6 +104,7 @@ func main() {
 		CoolPort:   *coolPort,
 		DumpPath:   *dumpPath,
 		EnableDump: !*noDump,
+		BindAddr:   *bindAddr,
 	}
 
 	// サーバー作成
