@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"net"
@@ -16,7 +17,7 @@ type Server struct {
 	DumpSystem *DumpSystem
 	HotConn    *Connection
 	CoolConn   *Connection
-	snapshotCh chan<- BoardSnapshot
+	snapshotCh chan BoardSnapshot
 	revision   uint64
 }
 
@@ -27,7 +28,7 @@ type ServerConfig struct {
 	CoolPort   int
 	DumpPath   string
 	EnableDump bool
-	SnapshotCh chan<- BoardSnapshot // nil = no-op
+	SnapshotCh chan BoardSnapshot // nil = no-op
 }
 
 // NewServer creates a new CHaser server
@@ -58,6 +59,9 @@ func (s *Server) Start(ctx context.Context) error {
 	log.Printf("Starting CHaser server...")
 	log.Printf("Hot port: %d, Cool port: %d", s.config.HotPort, s.config.CoolPort)
 	log.Printf("Max turns: %d", s.Board.MaxTurns)
+
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
 
 	var wg sync.WaitGroup
 	errChan := make(chan error, 2)
@@ -96,6 +100,7 @@ func (s *Server) Start(ctx context.Context) error {
 
 	select {
 	case err := <-errChan:
+		cancel() // stop the other goroutine
 		<-doneChan
 		s.publishSnapshot(KindError, TurnStepFirst, PhaseError, "", err.Error())
 		return err
@@ -149,7 +154,7 @@ func (s *Server) acceptConnectionWithContext(ctx context.Context, port int, play
 
 	connection := NewConnection(conn)
 
-	name, err := connection.Receive()
+	name, err := connection.ReceiveContext(ctx)
 	if err != nil {
 		connection.Close()
 		return nil, "", fmt.Errorf("failed to receive player name: %w", err)
@@ -191,6 +196,9 @@ func (s *Server) runGame(ctx context.Context) error {
 		for _, a := range actors {
 			err := s.processTurn(ctx, a.conn, a.self, a.opponent)
 			if err != nil {
+				if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+					return err
+				}
 				log.Printf("%s turn error: %v", a.self.Name, err)
 				a.self.IsAlive = false
 				s.Board.GameOver = true
@@ -348,6 +356,11 @@ func (s *Server) publishSnapshot(kind SnapshotKind, step TurnStep, phase Snapsho
 	select {
 	case s.snapshotCh <- snap:
 	default:
-		// 受信側が処理中なら古いスナップショットを捨てて最新を優先
+		// channel full: drain old snapshot and send new (overwrite semantics)
+		select {
+		case <-s.snapshotCh:
+		default:
+		}
+		s.snapshotCh <- snap
 	}
 }
