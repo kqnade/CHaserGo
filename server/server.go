@@ -98,13 +98,34 @@ func (s *Server) Start(ctx context.Context) error {
 		close(doneChan)
 	}()
 
+	// closeConnections cleans up any connections established before the error.
+	closeConnections := func() {
+		if s.HotConn != nil {
+			s.HotConn.Close()
+		}
+		if s.CoolConn != nil {
+			s.CoolConn.Close()
+		}
+		s.DumpSystem.Close()
+	}
+
 	select {
 	case err := <-errChan:
 		cancel() // stop the other goroutine
 		<-doneChan
+		closeConnections()
 		s.publishSnapshot(KindError, TurnStepFirst, PhaseError, "", err.Error())
 		return err
 	case <-doneChan:
+		// Both goroutines finished; errChan may still carry an error if both
+		// failed and the scheduler picked doneChan first — check before proceeding.
+		select {
+		case err := <-errChan:
+			closeConnections()
+			s.publishSnapshot(KindError, TurnStepFirst, PhaseError, "", err.Error())
+			return err
+		default:
+		}
 	}
 
 	if err := s.DumpSystem.SetNames(s.Board.Hot.Name, s.Board.Cool.Name); err != nil {
