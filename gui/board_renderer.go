@@ -4,7 +4,7 @@ import (
 	"image/color"
 
 	"github.com/hajimehoshi/ebiten/v2"
-	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
+	"github.com/hajimehoshi/ebiten/v2/vector"
 	"github.com/kqnade/CHaserGo/server"
 )
 
@@ -43,7 +43,7 @@ func (r *BoardRenderer) Draw(screen *ebiten.Image, snap *server.BoardSnapshot) {
 			cell := snap.MapFlat[y*snap.Width+x]
 			px := float64(offsetX + x*tileSize)
 			py := float64(offsetY + y*tileSize)
-			ebitenutil.DrawRect(screen, px, py, float64(tileSize-1), float64(tileSize-1), cellColor(cell))
+			vector.FillRect(screen, float32(px), float32(py), float32(tileSize-1), float32(tileSize-1), cellColor(cell), false)
 		}
 	}
 
@@ -74,7 +74,7 @@ func drawMarker(screen *ebiten.Image, px, py, tileSize int, col color.Color, ali
 	x := float64(px + margin)
 	y := float64(py + margin)
 	size := float64(tileSize-1) - float64(margin*2)
-	ebitenutil.DrawRect(screen, x, y, size, size, col)
+	vector.FillRect(screen, float32(x), float32(y), float32(size), float32(size), col, false)
 }
 
 func min(a, b, c int) int {

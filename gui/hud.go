@@ -6,6 +6,7 @@ import (
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
+	"github.com/hajimehoshi/ebiten/v2/vector"
 	"github.com/kqnade/CHaserGo/server"
 )
 
@@ -24,7 +25,7 @@ func (h *HUD) Draw(screen *ebiten.Image, snap *server.BoardSnapshot) {
 	y := ScreenHeight - HUDHeight
 
 	// 背景
-	ebitenutil.DrawRect(screen, 0, float64(y), float64(ScreenWidth), float64(HUDHeight), hudBgColor)
+	vector.FillRect(screen, 0, float32(y), float32(ScreenWidth), float32(HUDHeight), hudBgColor, false)
 
 	// ターン表示
 	turnStr := fmt.Sprintf("Turn: %d / %d", snap.Turn, snap.MaxTurns)
