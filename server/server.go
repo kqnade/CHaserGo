@@ -11,55 +11,53 @@ import (
 
 // Server represents the CHaser game server
 type Server struct {
-	HotPort    int
-	CoolPort   int
+	config     ServerConfig
 	Board      *Board
 	DumpSystem *DumpSystem
 	HotConn    *Connection
 	CoolConn   *Connection
+	snapshotCh chan<- BoardSnapshot
+	revision   uint64
 }
 
 // ServerConfig holds server configuration
 type ServerConfig struct {
-	MapPath   string
-	HotPort   int
-	CoolPort  int
-	DumpPath  string
+	MapPath    string
+	HotPort    int
+	CoolPort   int
+	DumpPath   string
 	EnableDump bool
+	SnapshotCh chan<- BoardSnapshot // nil = no-op
 }
 
 // NewServer creates a new CHaser server
 func NewServer(config ServerConfig) (*Server, error) {
-	// ボードを読み込み
 	board, err := NewBoard(config.MapPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load board: %w", err)
 	}
 
-	// ダンプシステムを初期化
 	dumpSystem, err := NewDumpSystem(config.DumpPath, config.MapPath, config.EnableDump)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize dump system: %w", err)
 	}
 
-	return &Server{
-		HotPort:    config.HotPort,
-		CoolPort:   config.CoolPort,
+	s := &Server{
+		config:     config,
 		Board:      board,
 		DumpSystem: dumpSystem,
-	}, nil
+		snapshotCh: config.SnapshotCh,
+	}
+
+	s.publishSnapshot(KindInitial, TurnStepFirst, PhaseWaiting, "", "")
+	return s, nil
 }
 
 // Start starts the server and waits for connections
-func (s *Server) Start() error {
+func (s *Server) Start(ctx context.Context) error {
 	log.Printf("Starting CHaser server...")
-	log.Printf("Hot port: %d, Cool port: %d", s.HotPort, s.CoolPort)
+	log.Printf("Hot port: %d, Cool port: %d", s.config.HotPort, s.config.CoolPort)
 	log.Printf("Max turns: %d", s.Board.MaxTurns)
-
-	// 並行して両ポートで接続を待つ
-	// エラー時に早期終了するためのcontext
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 
 	var wg sync.WaitGroup
 	errChan := make(chan error, 2)
@@ -67,13 +65,11 @@ func (s *Server) Start() error {
 
 	wg.Add(2)
 
-	// Hot接続待機
 	go func() {
 		defer wg.Done()
-		conn, name, err := s.acceptConnectionWithContext(ctx, s.HotPort, "Hot")
+		conn, name, err := s.acceptConnectionWithContext(ctx, s.config.HotPort, "Hot")
 		if err != nil {
 			errChan <- fmt.Errorf("hot connection failed: %w", err)
-			cancel() // もう片方をキャンセル
 			return
 		}
 		s.HotConn = conn
@@ -81,13 +77,11 @@ func (s *Server) Start() error {
 		log.Printf("Hot player connected: %s", name)
 	}()
 
-	// Cool接続待機
 	go func() {
 		defer wg.Done()
-		conn, name, err := s.acceptConnectionWithContext(ctx, s.CoolPort, "Cool")
+		conn, name, err := s.acceptConnectionWithContext(ctx, s.config.CoolPort, "Cool")
 		if err != nil {
 			errChan <- fmt.Errorf("cool connection failed: %w", err)
-			cancel() // もう片方をキャンセル
 			return
 		}
 		s.CoolConn = conn
@@ -95,31 +89,27 @@ func (s *Server) Start() error {
 		log.Printf("Cool player connected: %s", name)
 	}()
 
-	// 完了待機
 	go func() {
 		wg.Wait()
 		close(doneChan)
 	}()
 
-	// 最初のエラーまたは完了を待つ
 	select {
 	case err := <-errChan:
-		cancel() // 残りをキャンセル
-		<-doneChan // 全goroutineの終了を待つ
+		<-doneChan
+		s.publishSnapshot(KindError, TurnStepFirst, PhaseError, "", err.Error())
 		return err
 	case <-doneChan:
-		// 正常完了
 	}
 
-	// プレイヤー名をダンプに記録
 	if err := s.DumpSystem.SetNames(s.Board.Hot.Name, s.Board.Cool.Name); err != nil {
 		log.Printf("Warning: failed to write names to dump: %v", err)
 	}
 
 	log.Println("Both players connected. Starting game...")
+	s.publishSnapshot(KindConnected, TurnStepFirst, PhaseRunning, "", "")
 
-	// ゲームメインループ
-	return s.runGame()
+	return s.runGame(ctx)
 }
 
 // acceptConnectionWithContext accepts a connection on the specified port with context support
@@ -132,10 +122,8 @@ func (s *Server) acceptConnectionWithContext(ctx context.Context, port int, play
 
 	log.Printf("Waiting for %s player on port %d...", playerType, port)
 
-	// タイムアウト設定（60秒）
 	_ = listener.(*net.TCPListener).SetDeadline(time.Now().Add(60 * time.Second))
 
-	// contextのキャンセルを監視
 	acceptChan := make(chan net.Conn, 1)
 	acceptErrChan := make(chan error, 1)
 
@@ -155,14 +143,12 @@ func (s *Server) acceptConnectionWithContext(ctx context.Context, port int, play
 	case err := <-acceptErrChan:
 		return nil, "", fmt.Errorf("failed to accept connection: %w", err)
 	case conn = <-acceptChan:
-		// 成功
 	}
 
 	log.Printf("%s player connected from %s", playerType, conn.RemoteAddr())
 
 	connection := NewConnection(conn)
 
-	// プレイヤー名を受信
 	name, err := connection.Receive()
 	if err != nil {
 		connection.Close()
@@ -172,203 +158,183 @@ func (s *Server) acceptConnectionWithContext(ctx context.Context, port int, play
 	return connection, name, nil
 }
 
+// turnActor はターンの先攻/後攻情報をまとめた型
+type turnActor struct {
+	conn     *Connection
+	self     *Character
+	opponent *Character
+	step     TurnStep
+}
+
+// actorsForTurn はターン番号に応じた先攻/後攻の順序を返す
+func (s *Server) actorsForTurn(turn int) [2]turnActor {
+	if turn%2 == 0 {
+		return [2]turnActor{
+			{s.HotConn, s.Board.Hot, s.Board.Cool, TurnStepFirst},
+			{s.CoolConn, s.Board.Cool, s.Board.Hot, TurnStepSecond},
+		}
+	}
+	return [2]turnActor{
+		{s.CoolConn, s.Board.Cool, s.Board.Hot, TurnStepFirst},
+		{s.HotConn, s.Board.Hot, s.Board.Cool, TurnStepSecond},
+	}
+}
+
+// TurnResult は processTurn の結果をまとめた値型
+type TurnResult struct {
+	Action    string
+	Direction Direction
+	EndedGame bool
+}
+
 // runGame runs the main game loop
-func (s *Server) runGame() error {
+func (s *Server) runGame(ctx context.Context) error {
 	defer s.HotConn.Close()
 	defer s.CoolConn.Close()
 	defer s.DumpSystem.Close()
 
 	for s.Board.Turn < s.Board.MaxTurns && !s.Board.GameOver {
-		// ターン番号に応じて先後を決定（偶数: Hot先攻、奇数: Cool先攻）
-		if s.Board.Turn%2 == 0 {
-			// Hot先攻
-			if err := s.processTurn(s.HotConn, s.Board.Hot, s.CoolConn, s.Board.Cool); err != nil {
-				log.Printf("Hot turn error: %v", err)
-				s.Board.Hot.IsAlive = false
+		actors := s.actorsForTurn(s.Board.Turn)
+		for _, a := range actors {
+			result, err := s.processTurn(ctx, a.conn, a.self, a.opponent)
+			if err != nil {
+				log.Printf("%s turn error: %v", a.self.Name, err)
+				a.self.IsAlive = false
 				s.Board.GameOver = true
-				break
 			}
+			_ = result
 
+			// ActionEnd: GameOver経路を含め毎回発火
+			s.publishSnapshot(KindActionEnd, a.step, PhaseRunning, "", "")
 			if s.Board.GameOver {
-				break
-			}
-
-			// Cool後攻
-			if err := s.processTurn(s.CoolConn, s.Board.Cool, s.HotConn, s.Board.Hot); err != nil {
-				log.Printf("Cool turn error: %v", err)
-				s.Board.Cool.IsAlive = false
-				s.Board.GameOver = true
-				break
-			}
-		} else {
-			// Cool先攻
-			if err := s.processTurn(s.CoolConn, s.Board.Cool, s.HotConn, s.Board.Hot); err != nil {
-				log.Printf("Cool turn error: %v", err)
-				s.Board.Cool.IsAlive = false
-				s.Board.GameOver = true
-				break
-			}
-
-			if s.Board.GameOver {
-				break
-			}
-
-			// Hot後攻
-			if err := s.processTurn(s.HotConn, s.Board.Hot, s.CoolConn, s.Board.Cool); err != nil {
-				log.Printf("Hot turn error: %v", err)
-				s.Board.Hot.IsAlive = false
-				s.Board.GameOver = true
 				break
 			}
 		}
 
-		// ターンを進める
-		s.Board.IncrementTurn()
-
-		// 状態をダンプに記録
-		if err := s.DumpSystem.Action(s.Board); err != nil {
-			log.Printf("Warning: failed to write action to dump: %v", err)
+		if !s.Board.GameOver {
+			s.Board.IncrementTurn()
+			s.publishSnapshot(KindTurnEnd, TurnStepSecond, PhaseRunning, "", "")
+			if err := s.DumpSystem.Action(s.Board); err != nil {
+				log.Printf("Warning: failed to write action to dump: %v", err)
+			}
 		}
 	}
 
-	// ゲーム終了処理
 	return s.endGame()
 }
 
 // processTurn processes one player's turn
-func (s *Server) processTurn(conn *Connection, char *Character, opponentConn *Connection, opponent *Character) error {
-	// "Ready\n" 送信（CHaserプロトコル）
+func (s *Server) processTurn(ctx context.Context, conn *Connection, char *Character, opponent *Character) (TurnResult, error) {
 	if err := conn.Send("Ready\n"); err != nil {
-		return fmt.Errorf("failed to send ready: %w", err)
+		return TurnResult{}, fmt.Errorf("failed to send ready: %w", err)
 	}
 
-	// "gr" 受信待機（準備完了確認）
-	if err := conn.WaitForReady(); err != nil {
-		return fmt.Errorf("failed to receive ready: %w", err)
+	if err := conn.WaitForReadyContext(ctx); err != nil {
+		return TurnResult{}, fmt.Errorf("failed to receive ready: %w", err)
 	}
 
-	// レスポンスを生成して送信（Ready専用）
+	// Ready レスポンス（周辺9マス）生成・送信
 	var readyResponse [10]int
 	if s.Board.GameOver {
 		readyResponse[0] = 0
 	} else {
 		readyResponse[0] = 1
 	}
-	// 周囲9マスの情報
 	directions := []struct {
 		dy, dx int
 		index  int
 	}{
-		{-1, -1, 1}, // 左上
-		{-1, 0, 2},  // 上
-		{-1, 1, 3},  // 右上
-		{0, -1, 4},  // 左
-		{0, 0, 5},   // 中央
-		{0, 1, 6},   // 右
-		{1, -1, 7},  // 左下
-		{1, 0, 8},   // 下
-		{1, 1, 9},   // 右下
+		{-1, -1, 1}, {-1, 0, 2}, {-1, 1, 3},
+		{0, -1, 4}, {0, 0, 5}, {0, 1, 6},
+		{1, -1, 7}, {1, 0, 8}, {1, 1, 9},
 	}
 	for _, d := range directions {
-		pos := Position{
-			Y: char.Position.Y + d.dy,
-			X: char.Position.X + d.dx,
-		}
+		pos := Position{Y: char.Position.Y + d.dy, X: char.Position.X + d.dx}
 		if pos == opponent.Position {
-			readyResponse[d.index] = 1 // 敵
+			readyResponse[d.index] = 1
 		} else {
 			readyResponse[d.index] = int(s.Board.GetCell(pos))
 		}
 	}
 
 	if err := conn.SendResponse(readyResponse); err != nil {
-		return fmt.Errorf("failed to send ready response: %w", err)
+		return TurnResult{}, fmt.Errorf("failed to send ready response: %w", err)
 	}
 
-	// ゲームオーバーなら終了
 	if s.Board.GameOver {
-		return nil
+		return TurnResult{EndedGame: true}, nil
 	}
 
-	// 行動データ受信
-	actionStr, err := conn.ReceiveAction()
+	// 行動受信
+	actionStr, err := conn.ReceiveActionContext(ctx)
 	if err != nil {
-		return fmt.Errorf("failed to receive action: %w", err)
+		return TurnResult{}, fmt.Errorf("failed to receive action: %w", err)
 	}
 
-	// アクションをパース
 	action, direction, err := ParseAction(actionStr)
 	if err != nil {
-		return fmt.Errorf("failed to parse action: %w", err)
+		return TurnResult{}, fmt.Errorf("failed to parse action: %w", err)
 	}
 
 	log.Printf("%s: %s %d (Turn %d)", char.Name, action, direction, s.Board.Turn)
 
-	// アクションを実行してレスポンスを生成
 	var response [10]int
-
 	switch action {
-	case "wk": // walk
+	case "wk":
 		if err := s.Board.Walk(char, direction); err != nil {
 			log.Printf("%s walk failed: %v", char.Name, err)
 		}
 		response = BuildWalkResponse(char, opponent, s.Board)
-
-	case "lk": // look
+	case "lk":
 		response = BuildLookResponse(char, opponent, s.Board, direction)
-
-	case "sc": // search
+	case "sc":
 		response = BuildSearchResponse(char, opponent, s.Board, direction)
-
-	case "pt": // put
+	case "pt":
 		s.Board.Put(char.Position, direction)
 		response = BuildPutResponse(char, opponent, s.Board)
 	}
 
-	// レスポンスを送信
 	if err := conn.SendResponse(response); err != nil {
-		return fmt.Errorf("failed to send response: %w", err)
+		return TurnResult{}, fmt.Errorf("failed to send response: %w", err)
 	}
 
-	// 確認応答("#\r\n")を受信
-	ack, err := conn.Receive()
+	// '#' 確認応答受信
+	ack, err := conn.ReceiveContext(ctx)
 	if err != nil {
-		return fmt.Errorf("failed to receive acknowledgment: %w", err)
+		return TurnResult{}, fmt.Errorf("failed to receive acknowledgment: %w", err)
 	}
 	if ack != "#" {
 		log.Printf("Warning: expected '#' acknowledgment, got '%s'", ack)
 	}
 
-	return nil
+	return TurnResult{Action: action, Direction: direction, EndedGame: s.Board.GameOver}, nil
 }
 
 // endGame handles game end
 func (s *Server) endGame() error {
 	log.Println("Game Over!")
 
-	// 勝敗判定
 	winner, reason := s.Board.GetResult()
 
+	var winnerName string
 	if winner == nil {
 		log.Printf("Result: Draw - %s", reason)
 		log.Printf("Hot: %d items, Cool: %d items", s.Board.Hot.Items, s.Board.Cool.Items)
-
-		// 引き分けをダンプに記録
 		if err := s.DumpSystem.Result(nil, nil, reason); err != nil {
 			log.Printf("Warning: failed to write result to dump: %v", err)
 		}
 	} else {
+		winnerName = winner.Name
 		loser := s.Board.GetOpponent(winner)
 		log.Printf("Result: %s wins! - %s", winner.Name, reason)
 		log.Printf("Hot: %d items, Cool: %d items", s.Board.Hot.Items, s.Board.Cool.Items)
-
-		// 勝者をダンプに記録
 		if err := s.DumpSystem.Result(winner, loser, reason); err != nil {
 			log.Printf("Warning: failed to write result to dump: %v", err)
 		}
 	}
 
-	// ゲームオーバー信号を送信
+	s.publishSnapshot(KindGameOver, TurnStepFirst, PhaseGameOver, winnerName, reason)
+
 	if s.HotConn != nil {
 		_ = s.HotConn.SendGameOver()
 	}
@@ -377,4 +343,19 @@ func (s *Server) endGame() error {
 	}
 
 	return nil
+}
+
+// publishSnapshot はスナップショットを snapshotCh に non-blocking で送信する
+// snapshotCh が nil の場合は no-op
+func (s *Server) publishSnapshot(kind SnapshotKind, step TurnStep, phase SnapshotPublicPhase, winner, reason string) {
+	if s.snapshotCh == nil {
+		return
+	}
+	s.revision++
+	snap := SnapshotFromBoard(s.Board, kind, step, phase, s.revision, winner, reason)
+	select {
+	case s.snapshotCh <- snap:
+	default:
+		// 受信側が処理中なら古いスナップショットを捨てて最新を優先
+	}
 }

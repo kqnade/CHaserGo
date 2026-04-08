@@ -2,6 +2,7 @@ package server
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"net"
 	"strings"
@@ -59,6 +60,43 @@ func (c *Connection) Close() error {
 		return c.conn.Close()
 	}
 	return nil
+}
+
+// ReceiveContext は ctx キャンセルに対応した Receive
+// ctx がキャンセルされると ReadDeadline を即時に設定して read を割り込む
+func (c *Connection) ReceiveContext(ctx context.Context) (string, error) {
+	if c.conn == nil {
+		return "", fmt.Errorf("connection is closed")
+	}
+
+	done := make(chan struct{})
+	go func() {
+		select {
+		case <-ctx.Done():
+			_ = c.conn.SetReadDeadline(time.Now())
+		case <-done:
+		}
+	}()
+	defer close(done)
+
+	return c.Receive()
+}
+
+// WaitForReadyContext は ctx キャンセルに対応した WaitForReady
+func (c *Connection) WaitForReadyContext(ctx context.Context) error {
+	msg, err := c.ReceiveContext(ctx)
+	if err != nil {
+		return err
+	}
+	if msg != "gr" {
+		return fmt.Errorf("expected 'gr', got '%s'", msg)
+	}
+	return nil
+}
+
+// ReceiveActionContext は ctx キャンセルに対応した ReceiveAction
+func (c *Connection) ReceiveActionContext(ctx context.Context) (string, error) {
+	return c.ReceiveContext(ctx)
 }
 
 // WaitForReady waits for "gr" (get ready) command

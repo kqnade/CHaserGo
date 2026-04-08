@@ -8,13 +8,14 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/kqnade/CHaserGo/gui"
 	"github.com/kqnade/CHaserGo/server"
 )
 
-const version = "0.2.0"
+const version = "0.3.0"
 
 func main() {
-	// コマンドライン引数の定義
 	hotPort := flag.Int("f", 2009, "Hot (first) player port")
 	flag.IntVar(hotPort, "first-port", 2009, "Hot (first) player port")
 
@@ -31,70 +32,86 @@ func main() {
 	flag.BoolVar(showVersion, "version", false, "Show version")
 
 	flag.Usage = func() {
-		fmt.Fprintf(os.Stderr, "CHaser Server - A compact CHaser game server\n\n")
+		fmt.Fprintf(os.Stderr, "CHaser GUI Server - A CHaser game server with real-time GUI\n\n")
 		fmt.Fprintf(os.Stderr, "Usage: %s [options] <mapfile>\n\n", filepath.Base(os.Args[0]))
 		fmt.Fprintf(os.Stderr, "Arguments:\n")
 		fmt.Fprintf(os.Stderr, "  <mapfile>    Path to the map file (required)\n\n")
 		fmt.Fprintf(os.Stderr, "Options:\n")
 		flag.PrintDefaults()
-		fmt.Fprintf(os.Stderr, "\nExample:\n")
-		fmt.Fprintf(os.Stderr, "  %s map.txt\n", filepath.Base(os.Args[0]))
-		fmt.Fprintf(os.Stderr, "  %s -f 3000 -s 3001 -d game.dump map.txt\n", filepath.Base(os.Args[0]))
 	}
 
 	flag.Parse()
 
-	// バージョン表示
 	if *showVersion {
-		fmt.Printf("CHaser Server version %s\n", version)
+		fmt.Printf("CHaser GUI Server version %s\n", version)
 		return
 	}
 
-	// マップファイルのチェック
 	if flag.NArg() < 1 {
-		fmt.Fprintf(os.Stderr, "Error: map file is required\n\n")
+		fmt.Fprintln(os.Stderr, "Error: map file is required")
 		flag.Usage()
 		os.Exit(1)
 	}
 
 	mapPath := flag.Arg(0)
-
-	// マップファイルの存在確認
 	if _, err := os.Stat(mapPath); os.IsNotExist(err) {
 		fmt.Fprintf(os.Stderr, "Error: map file not found: %s\n", mapPath)
 		os.Exit(1)
 	}
 
-	// サーバー設定
+	ctx, cancel := context.WithCancel(context.Background())
+
+	// スナップショット channel（buffered=1: 常に最新だけ保持）
+	ch := make(chan server.BoardSnapshot, 1)
+
 	config := server.ServerConfig{
 		MapPath:    mapPath,
 		HotPort:    *hotPort,
 		CoolPort:   *coolPort,
 		DumpPath:   *dumpPath,
 		EnableDump: !*noDump,
+		SnapshotCh: ch,
 	}
 
-	// サーバー作成
 	srv, err := server.NewServer(config)
 	if err != nil {
 		log.Fatalf("Failed to create server: %v", err)
 	}
 
-	// サーバー起動
-	log.Println("=== CHaser Server ===")
-	log.Printf("Map: %s", mapPath)
-	log.Printf("Hot port: %d", *hotPort)
-	log.Printf("Cool port: %d", *coolPort)
-	if *noDump {
-		log.Println("Dump: disabled")
-	} else {
-		log.Printf("Dump: %s", *dumpPath)
-	}
-	log.Println("=====================")
+	// 状態管理
+	state := &gui.GameState{}
+	go state.Run(ch)
 
-	if err := srv.Start(context.Background()); err != nil {
-		log.Fatalf("Server error: %v", err)
+	// サーバーを goroutine で起動
+	go func() {
+		log.Println("=== CHaser GUI Server ===")
+		log.Printf("Map: %s", mapPath)
+		log.Printf("Hot port: %d", *hotPort)
+		log.Printf("Cool port: %d", *coolPort)
+		if *noDump {
+			log.Println("Dump: disabled")
+		} else {
+			log.Printf("Dump: %s", *dumpPath)
+		}
+		log.Println("=========================")
+
+		if err := srv.Start(ctx); err != nil {
+			log.Printf("Server error: %v", err)
+			cancel()
+		}
+		close(ch)
+	}()
+
+	// Ebitengine をメインスレッドで起動
+	ebiten.SetWindowSize(gui.ScreenWidth, gui.ScreenHeight)
+	ebiten.SetWindowTitle("CHaser Server GUI")
+	ebiten.SetWindowResizingMode(ebiten.WindowResizingModeEnabled)
+
+	app := gui.NewApp(state, cancel)
+	if err := ebiten.RunGame(app); err != nil {
+		log.Printf("GUI error: %v", err)
 	}
 
-	log.Println("Server finished successfully")
+	// ウィンドウが閉じられたらサーバーも停止
+	cancel()
 }
