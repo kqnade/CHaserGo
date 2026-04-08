@@ -10,6 +10,7 @@ import (
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/kqnade/CHaserGo/gui"
+	"github.com/kqnade/CHaserGo/mapgen"
 	"github.com/kqnade/CHaserGo/server"
 )
 
@@ -33,9 +34,9 @@ func main() {
 
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "CHaser GUI Server - A CHaser game server with real-time GUI\n\n")
-		fmt.Fprintf(os.Stderr, "Usage: %s [options] <mapfile>\n\n", filepath.Base(os.Args[0]))
+		fmt.Fprintf(os.Stderr, "Usage: %s [options] [mapfile]\n\n", filepath.Base(os.Args[0]))
 		fmt.Fprintf(os.Stderr, "Arguments:\n")
-		fmt.Fprintf(os.Stderr, "  <mapfile>    Path to the map file (required)\n\n")
+		fmt.Fprintf(os.Stderr, "  [mapfile]    Path to the map file (optional; auto-generated if omitted)\n\n")
 		fmt.Fprintf(os.Stderr, "Options:\n")
 		flag.PrintDefaults()
 	}
@@ -47,16 +48,28 @@ func main() {
 		return
 	}
 
-	if flag.NArg() < 1 {
-		fmt.Fprintln(os.Stderr, "Error: map file is required")
-		flag.Usage()
-		os.Exit(1)
-	}
+	// マップファイルの決定（省略時は自動生成）
+	var mapPath string
+	if flag.NArg() >= 1 {
+		mapPath = flag.Arg(0)
+		if _, err := os.Stat(mapPath); os.IsNotExist(err) {
+			fmt.Fprintf(os.Stderr, "Error: map file not found: %s\n", mapPath)
+			os.Exit(1)
+		}
+	} else {
+		tmp, err := os.CreateTemp("", "chaser-*.map")
+		if err != nil {
+			log.Fatalf("Failed to create temp map file: %v", err)
+		}
+		mapPath = tmp.Name()
+		tmp.Close()
+		defer os.Remove(mapPath)
 
-	mapPath := flag.Arg(0)
-	if _, err := os.Stat(mapPath); os.IsNotExist(err) {
-		fmt.Fprintf(os.Stderr, "Error: map file not found: %s\n", mapPath)
-		os.Exit(1)
+		m := mapgen.NewGenerator().GenerateMap(9, 10)
+		if err := m.SaveToFile(mapPath); err != nil {
+			log.Fatalf("Failed to generate map: %v", err)
+		}
+		log.Printf("No map file specified. Auto-generated: %s", mapPath)
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())

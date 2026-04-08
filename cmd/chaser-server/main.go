@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/kqnade/CHaserGo/mapgen"
 	"github.com/kqnade/CHaserGo/server"
 )
 
@@ -32,12 +33,13 @@ func main() {
 
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "CHaser Server - A compact CHaser game server\n\n")
-		fmt.Fprintf(os.Stderr, "Usage: %s [options] <mapfile>\n\n", filepath.Base(os.Args[0]))
+		fmt.Fprintf(os.Stderr, "Usage: %s [options] [mapfile]\n\n", filepath.Base(os.Args[0]))
 		fmt.Fprintf(os.Stderr, "Arguments:\n")
-		fmt.Fprintf(os.Stderr, "  <mapfile>    Path to the map file (required)\n\n")
+		fmt.Fprintf(os.Stderr, "  [mapfile]    Path to the map file (optional; auto-generated if omitted)\n\n")
 		fmt.Fprintf(os.Stderr, "Options:\n")
 		flag.PrintDefaults()
 		fmt.Fprintf(os.Stderr, "\nExample:\n")
+		fmt.Fprintf(os.Stderr, "  %s\n", filepath.Base(os.Args[0]))
 		fmt.Fprintf(os.Stderr, "  %s map.txt\n", filepath.Base(os.Args[0]))
 		fmt.Fprintf(os.Stderr, "  %s -f 3000 -s 3001 -d game.dump map.txt\n", filepath.Base(os.Args[0]))
 	}
@@ -50,19 +52,28 @@ func main() {
 		return
 	}
 
-	// マップファイルのチェック
-	if flag.NArg() < 1 {
-		fmt.Fprintf(os.Stderr, "Error: map file is required\n\n")
-		flag.Usage()
-		os.Exit(1)
-	}
+	// マップファイルの決定（省略時は自動生成）
+	var mapPath string
+	if flag.NArg() >= 1 {
+		mapPath = flag.Arg(0)
+		if _, err := os.Stat(mapPath); os.IsNotExist(err) {
+			fmt.Fprintf(os.Stderr, "Error: map file not found: %s\n", mapPath)
+			os.Exit(1)
+		}
+	} else {
+		tmp, err := os.CreateTemp("", "chaser-*.map")
+		if err != nil {
+			log.Fatalf("Failed to create temp map file: %v", err)
+		}
+		mapPath = tmp.Name()
+		tmp.Close()
+		defer os.Remove(mapPath)
 
-	mapPath := flag.Arg(0)
-
-	// マップファイルの存在確認
-	if _, err := os.Stat(mapPath); os.IsNotExist(err) {
-		fmt.Fprintf(os.Stderr, "Error: map file not found: %s\n", mapPath)
-		os.Exit(1)
+		m := mapgen.NewGenerator().GenerateMap(9, 10)
+		if err := m.SaveToFile(mapPath); err != nil {
+			log.Fatalf("Failed to generate map: %v", err)
+		}
+		log.Printf("No map file specified. Auto-generated: %s", mapPath)
 	}
 
 	// サーバー設定
