@@ -35,9 +35,9 @@ build-mapgen:
 
 build-examples:
 	@echo "Building examples..."
-	@go build -o bin/test1 ./examples/test1
-	@go build -o bin/test2 ./examples/test2
-	@go build -o bin/test3 ./examples/test3
+	@cd examples/test1 && go build -o ../../bin/test1 .
+	@cd examples/test2 && go build -o ../../bin/test2 .
+	@cd examples/test3 && go build -o ../../bin/test3 .
 
 # テスト
 test:

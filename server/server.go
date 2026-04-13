@@ -7,7 +7,6 @@ import (
 	"log"
 	"net"
 	"sync"
-	"time"
 )
 
 // Server represents the CHaser game server
@@ -164,8 +163,6 @@ func (s *Server) acceptConnectionWithContext(ctx context.Context, port int, play
 	defer listener.Close()
 
 	log.Printf("Waiting for %s player on port %d...", playerType, port)
-
-	_ = listener.(*net.TCPListener).SetDeadline(time.Now().Add(60 * time.Second))
 
 	acceptChan := make(chan net.Conn, 1)
 	acceptErrChan := make(chan error, 1)
