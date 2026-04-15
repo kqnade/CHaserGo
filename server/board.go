@@ -165,6 +165,43 @@ func NewBoard(mapPath string) (*Board, error) {
 		return nil, fmt.Errorf("error reading map file: %w", err)
 	}
 
+	// --- 入力値バリデーション ---
+	if board.MaxTurns <= 0 {
+		return nil, fmt.Errorf("invalid max turns: %d (must be > 0)", board.MaxTurns)
+	}
+	if board.Width <= 0 || board.Height <= 0 {
+		return nil, fmt.Errorf("invalid board size: %dx%d", board.Width, board.Height)
+	}
+	// セル値の検証
+	for y := 0; y < board.Height; y++ {
+		for x := 0; x < board.Width; x++ {
+			v := board.MapData[y][x]
+			if v != Empty && v != Wall && v != Item {
+				return nil, fmt.Errorf("invalid cell value %d at (%d,%d)", v, y, x)
+			}
+		}
+	}
+	// Hot の初期位置検証
+	hp := board.Hot.Position
+	if hp.Y < 0 || hp.Y >= board.Height || hp.X < 0 || hp.X >= board.Width {
+		return nil, fmt.Errorf("hot start position (%d,%d) is out of bounds", hp.Y, hp.X)
+	}
+	if board.MapData[hp.Y][hp.X] == Wall {
+		return nil, fmt.Errorf("hot start position (%d,%d) is on a wall", hp.Y, hp.X)
+	}
+	// Cool の初期位置検証
+	cp := board.Cool.Position
+	if cp.Y < 0 || cp.Y >= board.Height || cp.X < 0 || cp.X >= board.Width {
+		return nil, fmt.Errorf("cool start position (%d,%d) is out of bounds", cp.Y, cp.X)
+	}
+	if board.MapData[cp.Y][cp.X] == Wall {
+		return nil, fmt.Errorf("cool start position (%d,%d) is on a wall", cp.Y, cp.X)
+	}
+	// Hot と Cool が同じ位置でないことを確認
+	if hp == cp {
+		return nil, fmt.Errorf("hot and cool start at the same position (%d,%d)", hp.Y, hp.X)
+	}
+
 	return board, nil
 }
 

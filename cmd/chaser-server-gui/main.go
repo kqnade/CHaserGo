@@ -2,20 +2,22 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"log"
 	"os"
 	"path/filepath"
 
+	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/kqnade/CHaserGo/gui"
 	"github.com/kqnade/CHaserGo/mapgen"
 	"github.com/kqnade/CHaserGo/server"
 )
 
-const version = "0.2.0"
+const version = "0.3.0"
 
 func main() {
-	// コマンドライン引数の定義
 	hotPort := flag.Int("f", 2009, "Hot (first) player port")
 	flag.IntVar(hotPort, "first-port", 2009, "Hot (first) player port")
 
@@ -34,23 +36,18 @@ func main() {
 	flag.BoolVar(showVersion, "version", false, "Show version")
 
 	flag.Usage = func() {
-		fmt.Fprintf(os.Stderr, "CHaser Server - A compact CHaser game server\n\n")
+		fmt.Fprintf(os.Stderr, "CHaser GUI Server - A CHaser game server with real-time GUI\n\n")
 		fmt.Fprintf(os.Stderr, "Usage: %s [options] [mapfile]\n\n", filepath.Base(os.Args[0]))
 		fmt.Fprintf(os.Stderr, "Arguments:\n")
 		fmt.Fprintf(os.Stderr, "  [mapfile]    Path to the map file (optional; auto-generated if omitted)\n\n")
 		fmt.Fprintf(os.Stderr, "Options:\n")
 		flag.PrintDefaults()
-		fmt.Fprintf(os.Stderr, "\nExample:\n")
-		fmt.Fprintf(os.Stderr, "  %s\n", filepath.Base(os.Args[0]))
-		fmt.Fprintf(os.Stderr, "  %s map.txt\n", filepath.Base(os.Args[0]))
-		fmt.Fprintf(os.Stderr, "  %s -f 3000 -s 3001 -d game.dump map.txt\n", filepath.Base(os.Args[0]))
 	}
 
 	flag.Parse()
 
-	// バージョン表示
 	if *showVersion {
-		fmt.Printf("CHaser Server version %s\n", version)
+		fmt.Printf("CHaser GUI Server version %s\n", version)
 		return
 	}
 
@@ -63,41 +60,26 @@ func main() {
 			os.Exit(1)
 		}
 	} else {
-		var tmp *os.File
-		cleanupTemp := func() {
-			if tmp != nil {
-				_ = tmp.Close()
-				tmp = nil
-			}
-			if mapPath != "" {
-				_ = os.Remove(mapPath)
-			}
-		}
-
 		tmp, err := os.CreateTemp("", "chaser-*.map")
 		if err != nil {
-			log.Printf("Failed to create temp map file: %v", err)
-			os.Exit(1)
+			log.Fatalf("Failed to create temp map file: %v", err)
 		}
 		mapPath = tmp.Name()
-		if err := tmp.Close(); err != nil {
-			cleanupTemp()
-			log.Printf("Failed to close temp map file: %v", err)
-			os.Exit(1)
-		}
-		tmp = nil
+		tmp.Close()
 		defer os.Remove(mapPath)
 
 		m := mapgen.NewGenerator().GenerateMap(9, 10)
 		if err := m.SaveToFile(mapPath); err != nil {
-			cleanupTemp()
-			log.Printf("Failed to generate map: %v", err)
-			os.Exit(1)
+			log.Fatalf("Failed to generate map: %v", err)
 		}
 		log.Printf("No map file specified. Auto-generated: %s", mapPath)
 	}
 
-	// サーバー設定
+	ctx, cancel := context.WithCancel(context.Background())
+
+	// スナップショット channel（buffered=1: 常に最新だけ保持）
+	ch := make(chan server.BoardSnapshot, 1)
+
 	config := server.ServerConfig{
 		MapPath:    mapPath,
 		HotPort:    *hotPort,
@@ -105,29 +87,50 @@ func main() {
 		DumpPath:   *dumpPath,
 		EnableDump: !*noDump,
 		BindAddr:   *bindAddr,
+		SnapshotCh: ch,
 	}
 
-	// サーバー作成
 	srv, err := server.NewServer(config)
 	if err != nil {
 		log.Fatalf("Failed to create server: %v", err)
 	}
 
-	// サーバー起動
-	log.Println("=== CHaser Server ===")
-	log.Printf("Map: %s", mapPath)
-	log.Printf("Hot port: %d", *hotPort)
-	log.Printf("Cool port: %d", *coolPort)
-	if *noDump {
-		log.Println("Dump: disabled")
-	} else {
-		log.Printf("Dump: %s", *dumpPath)
-	}
-	log.Println("=====================")
+	// 状態管理
+	state := &gui.GameState{}
+	go state.Run(ch)
 
-	if err := srv.Start(context.Background()); err != nil {
-		log.Fatalf("Server error: %v", err)
+	// サーバーを goroutine で起動
+	go func() {
+		log.Println("=== CHaser GUI Server ===")
+		log.Printf("Map: %s", mapPath)
+		log.Printf("Hot port: %d", *hotPort)
+		log.Printf("Cool port: %d", *coolPort)
+		if *noDump {
+			log.Println("Dump: disabled")
+		} else {
+			log.Printf("Dump: %s", *dumpPath)
+		}
+		log.Println("=========================")
+
+		if err := srv.Start(ctx); err != nil {
+			if !errors.Is(err, context.Canceled) {
+				log.Printf("Server error: %v", err)
+			}
+			cancel()
+		}
+		close(ch)
+	}()
+
+	// Ebitengine をメインスレッドで起動
+	ebiten.SetWindowSize(gui.ScreenWidth, gui.ScreenHeight)
+	ebiten.SetWindowTitle("CHaser Server GUI")
+	ebiten.SetWindowResizingMode(ebiten.WindowResizingModeEnabled)
+
+	app := gui.NewApp(state, cancel)
+	if err := ebiten.RunGame(app); err != nil {
+		log.Printf("GUI error: %v", err)
 	}
 
-	log.Println("Server finished successfully")
+	// ウィンドウが閉じられたらサーバーも停止
+	cancel()
 }

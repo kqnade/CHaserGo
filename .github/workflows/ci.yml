@@ -20,6 +20,9 @@ jobs:
       with:
         go-version: '1.24'
 
+    - name: Install X11 dependencies (for ebiten/gui build)
+      uses: ./.github/actions/install-x11-deps
+
     - name: Run tests
       run: go test -v -race -coverprofile=coverage.txt -covermode=atomic ./...
 
@@ -42,10 +45,14 @@ jobs:
       with:
         go-version: '1.24'
 
+    - name: Install X11 dependencies (for ebiten/gui build)
+      uses: ./.github/actions/install-x11-deps
+
     - name: Build tools
       run: |
         go build -o bin/chaser-server ./cmd/chaser-server
         go build -o bin/chaser-mapgen ./cmd/chaser-mapgen
+        go build -o bin/chaser-server-gui ./cmd/chaser-server-gui
 
     - name: Generate test map
       run: |
@@ -69,6 +76,9 @@ jobs:
       with:
         go-version: '1.24'
 
+    - name: Install X11 dependencies (for ebiten/gui build)
+      uses: ./.github/actions/install-x11-deps
+
     - name: Run golangci-lint
       uses: golangci/golangci-lint-action@v4
       with:
@@ -90,6 +100,10 @@ jobs:
       with:
         go-version: '1.24'
 
+    - name: Install X11 dependencies (Linux only, for ebiten/gui build)
+      if: runner.os == 'Linux'
+      uses: ./.github/actions/install-x11-deps
+
     - name: Build client library
       run: go build ./chaser
 
@@ -98,6 +112,9 @@ jobs:
 
     - name: Build mapgen
       run: go build ./cmd/chaser-mapgen
+
+    - name: Build GUI server
+      run: go build ./cmd/chaser-server-gui
 
     - name: Build examples
       run: |

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"syscall"
 	"time"
 )
 
@@ -106,6 +107,30 @@ func (c *Client) Disconnect() error {
 	return nil
 }
 
+// applyCtxDeadline はコネクションにctxのデッドラインを設定し、
+// ctx.Done()で即時中断するgoroutineを起動する。
+// 呼び出し側はdeferでcancel()を呼ぶこと。
+func (c *Client) applyCtxDeadline(ctx context.Context) (cancel func(), err error) {
+	if err = ctx.Err(); err != nil {
+		return func() {}, err
+	}
+	deadline, ok := ctx.Deadline()
+	if !ok {
+		deadline = time.Now().Add(10 * time.Second)
+	}
+	_ = c.conn.SetDeadline(deadline)
+
+	done := make(chan struct{})
+	go func() {
+		select {
+		case <-ctx.Done():
+			_ = c.conn.SetDeadline(time.Now())
+		case <-done:
+		}
+	}()
+	return func() { close(done) }, nil
+}
+
 // Ready はゲーム開始準備を通知する
 // Ruby版のgetReadyに相当
 func (c *Client) Ready(ctx context.Context) (*Response, error) {
@@ -113,27 +138,45 @@ func (c *Client) Ready(ctx context.Context) (*Response, error) {
 		return nil, ErrNotConnected
 	}
 
+	cancelDeadline, err := c.applyCtxDeadline(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer cancelDeadline()
+
 	// getReadyは特殊: 初期行を読み取る + "gr\r" 送信
 	// 1. 初期行を読み取る（"Ready"など）
-	_, err := c.reader.ReadString('\n')
+	_, err = c.reader.ReadString('\n')
 	if err != nil {
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return nil, ctxErr
+		}
 		return nil, fmt.Errorf("failed to read initial line: %w", err)
 	}
 
 	// 2. "gr\r"を送信（Ruby版では\r\nではなく\rのみ）
 	_, err = c.writer.WriteString("gr\r\n")
 	if err != nil {
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return nil, ctxErr
+		}
 		return nil, fmt.Errorf("failed to send getReady command: %w", err)
 	}
 
 	err = c.writer.Flush()
 	if err != nil {
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return nil, ctxErr
+		}
 		return nil, fmt.Errorf("failed to flush getReady command: %w", err)
 	}
 
 	// 3. レスポンスを読み取る
 	line, err := c.reader.ReadString('\n')
 	if err != nil {
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return nil, ctxErr
+		}
 		// EOFまたは接続リセットはゲーム終了を意味する
 		if errors.Is(err, io.EOF) || isConnectionReset(err) {
 			return &Response{GameOver: true}, nil
@@ -141,10 +184,10 @@ func (c *Client) Ready(ctx context.Context) (*Response, error) {
 		return nil, fmt.Errorf("failed to read response: %w", err)
 	}
 
-	// 4. レスポンスをパース
+	// 4. レスポンスをパース（失敗は敗北扱い）
 	resp, err := parseResponse(line)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
+		return &Response{GameOver: true}, nil
 	}
 
 	return resp, nil
@@ -157,20 +200,35 @@ func (c *Client) sendCommand(ctx context.Context, cmd string) (*Response, error)
 		return nil, ErrNotConnected
 	}
 
-	// 1. コマンド送信（"XX\r\n"形式）
-	_, err := c.writer.WriteString(cmd + "\r\n")
+	cancelDeadline, err := c.applyCtxDeadline(ctx)
 	if err != nil {
+		return nil, err
+	}
+	defer cancelDeadline()
+
+	// 1. コマンド送信（"XX\r\n"形式）
+	_, err = c.writer.WriteString(cmd + "\r\n")
+	if err != nil {
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return nil, ctxErr
+		}
 		return nil, fmt.Errorf("failed to send command: %w", err)
 	}
 
 	err = c.writer.Flush()
 	if err != nil {
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return nil, ctxErr
+		}
 		return nil, fmt.Errorf("failed to flush command: %w", err)
 	}
 
 	// 2. レスポンス読み取り
 	line, err := c.reader.ReadString('\n')
 	if err != nil {
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return nil, ctxErr
+		}
 		// EOFまたは接続リセットはゲーム終了を意味する
 		if errors.Is(err, io.EOF) || isConnectionReset(err) {
 			return &Response{GameOver: true}, nil
@@ -178,10 +236,10 @@ func (c *Client) sendCommand(ctx context.Context, cmd string) (*Response, error)
 		return nil, fmt.Errorf("failed to read response: %w", err)
 	}
 
-	// 3. レスポンスをパース
+	// 3. レスポンスをパース（不正レスポンスは敗北扱い）
 	resp, err := parseResponse(line)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
+		return &Response{GameOver: true}, nil
 	}
 
 	// 4. 確認応答送信（"#\r\n"）
@@ -224,15 +282,14 @@ func (c *Client) SetDeadline(t time.Time) error {
 	return c.conn.SetDeadline(t)
 }
 
-// isConnectionReset はエラーが接続リセットかどうかを判定する
+// isConnectionReset はエラーが接続リセットまたはパイプ破損かどうかを判定する
 func isConnectionReset(err error) bool {
 	if err == nil {
 		return false
 	}
 	var opErr *net.OpError
 	if errors.As(err, &opErr) {
-		// 接続リセットやパイプ破損などのネットワークエラーを検出
-		return true
+		return errors.Is(opErr.Err, syscall.ECONNRESET) || errors.Is(opErr.Err, syscall.EPIPE)
 	}
 	return false
 }
