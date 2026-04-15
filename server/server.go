@@ -189,6 +189,9 @@ func (s *Server) acceptConnectionWithContext(ctx context.Context, port int, play
 		}
 		return nil, "", ctx.Err()
 	case err := <-acceptErrChan:
+		if ctx.Err() != nil {
+			return nil, "", ctx.Err()
+		}
 		return nil, "", fmt.Errorf("failed to accept connection: %w", err)
 	case conn = <-acceptChan:
 	}
