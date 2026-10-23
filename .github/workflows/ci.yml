@@ -18,7 +18,7 @@ jobs:
     - name: Set up Go
       uses: actions/setup-go@v5
       with:
-        go-version: '1.24'
+        go-version: '1.27'
 
     - name: Install X11 dependencies (for ebiten/gui build)
       uses: ./.github/actions/install-x11-deps
@@ -43,7 +43,7 @@ jobs:
     - name: Set up Go
       uses: actions/setup-go@v5
       with:
-        go-version: '1.24'
+        go-version: '1.27'
 
     - name: Install X11 dependencies (for ebiten/gui build)
       uses: ./.github/actions/install-x11-deps
@@ -74,7 +74,7 @@ jobs:
     - name: Set up Go
       uses: actions/setup-go@v5
       with:
-        go-version: '1.24'
+        go-version: '1.27'
 
     - name: Install X11 dependencies (for ebiten/gui build)
       uses: ./.github/actions/install-x11-deps
@@ -98,7 +98,7 @@ jobs:
     - name: Set up Go
       uses: actions/setup-go@v5
       with:
-        go-version: '1.24'
+        go-version: '1.27'
 
     - name: Install X11 dependencies (Linux only, for ebiten/gui build)
       if: runner.os == 'Linux'
