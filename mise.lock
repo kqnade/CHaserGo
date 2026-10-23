@@ -3,18 +3,18 @@
 lockfile_version = 1
 
 [[tools.go]]
-version = "1.24.13"
+version = "1.27.3"
 backend = "core:go"
-specifiers = ["1.24.13"]
+specifiers = ["1.27.3"]
 
 [tools.go."platforms.linux-x64"]
-checksum = "sha256:1fc94b57134d51669c72173ad5d49fd62afb0f1db9bf3f798fd98ee423f8d730"
-url = "https://dl.google.com/go/go1.24.13.linux-amd64.tar.gz"
+checksum = "sha256:65efbc80fdc1fa2cd2631cad5b481777a68e8725f34e89f50fc6ac714e379b40"
+url = "https://dl.google.com/go/go1.27.3.linux-amd64.tar.gz"
 
 [tools.go."platforms.macos-arm64"]
-checksum = "sha256:f282d882c3353485e2fc6c634606d85caf36e855167d59b996dbeae19fa7629a"
-url = "https://dl.google.com/go/go1.24.13.darwin-arm64.tar.gz"
+checksum = "sha256:dd3908cf20959d798c1e06ebe5b72213f0505ce01373b40ce3110975a6cd99c2"
+url = "https://dl.google.com/go/go1.27.3.darwin-arm64.tar.gz"
 
 [tools.go."platforms.macos-x64"]
-checksum = "sha256:6cc6549b06725220b342b740497ffd24e0ebdcef75781a77931ca199f46ad781"
-url = "https://dl.google.com/go/go1.24.13.darwin-amd64.tar.gz"
+checksum = "sha256:b6f8e931e4ab497fcde6da8ae4499a58f9d258e55c8a80824a516eae5950a750"
+url = "https://dl.google.com/go/go1.27.3.darwin-amd64.tar.gz"
