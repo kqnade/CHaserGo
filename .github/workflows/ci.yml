@@ -80,7 +80,7 @@ jobs:
       uses: ./.github/actions/install-x11-deps
 
     - name: Run golangci-lint
-      uses: golangci/golangci-lint-action@v4
+      uses: golangci/golangci-lint-action@v9
       with:
         version: latest
 
